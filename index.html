@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NestPulse, a command center for a personal AI NAS</title>
+  <meta name="description" content="NestPulse is an offline, zero dependency dashboard concept for a personal AI NAS: RAID math, local model fitting, library cleanup planning, and automation rule conflict checks, all on a labeled demo dataset.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c1219'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%234fd6ae'/%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%234fd6ae' stroke-opacity='0.4' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body id="top">
+  <a class="skip" href="#main">Skip to the panels</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="wordmark" href="#top"><span class="wordmark-dot" aria-hidden="true"></span>NestPulse</a>
+      <nav class="site-nav" aria-label="Panel navigation">
+        <a href="#storage">Storage Doctor</a>
+        <a href="#models">Model Fit</a>
+        <a href="#tidy">Tidy Plans</a>
+        <a href="#rules">Rule Forge</a>
+      </nav>
+      <p class="header-note">Offline demo</p>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-h">
+      <h1 id="hero-h">A command center for a <em>personal AI NAS</em>.</h1>
+      <p class="hero-lede">NestPulse puts four working planners side by side: storage math, model fitting, library cleanup, and automation rules. Every number is computed in this tab, every dataset is a labeled demo, and nothing ever leaves the page.</p>
+      <ul class="hero-chips" aria-label="What this page is">
+        <li class="chip chip-quiet">Runs offline</li>
+        <li class="chip chip-quiet">Zero dependencies</li>
+        <li class="chip chip-quiet">Synthetic data</li>
+        <li class="chip chip-quiet">MIT licensed</li>
+      </ul>
+      <svg class="pulse-line" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <polyline points="0,40 140,40 170,40 190,12 210,68 230,40 420,40 450,40 470,20 490,60 510,40 700,40 730,40 750,8 770,72 790,40 980,40 1010,40 1030,18 1050,62 1070,40 1200,40" />
+      </svg>
+    </section>
+
+    <section id="storage" class="panel wrap reveal" aria-labelledby="storage-h">
+      <div class="panel-head">
+        <h2 id="storage-h"><span class="dot" aria-hidden="true"></span>Storage Doctor</h2>
+        <p class="lede">Pick your drives and rebuild speed. Every level shows usable space, efficiency, fault tolerance, and how long a rebuild would stretch.</p>
+      </div>
+      <div class="controls" role="group" aria-label="Storage inputs">
+        <div class="field">
+          <label for="drive-count">Drives</label>
+          <input id="drive-count" type="number" min="2" max="16" step="1" value="4" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="drive-size">Drive size</label>
+          <select id="drive-size">
+            <option value="1">1 TB</option>
+            <option value="2">2 TB</option>
+            <option value="4">4 TB</option>
+            <option value="6">6 TB</option>
+            <option value="8" selected>8 TB</option>
+            <option value="10">10 TB</option>
+            <option value="12">12 TB</option>
+            <option value="16">16 TB</option>
+            <option value="20">20 TB</option>
+            <option value="22">22 TB</option>
+          </select>
+        </div>
+        <div class="field field-wide">
+          <label for="rebuild-speed">Rebuild speed</label>
+          <input id="rebuild-speed" type="range" min="80" max="500" step="10" value="250" aria-describedby="rebuild-speed-out">
+          <output id="rebuild-speed-out" for="rebuild-speed">250 MB per second</output>
+        </div>
+      </div>
+      <p class="panel-summary mono" id="storage-summary" aria-live="polite"></p>
+      <div class="raid-grid" id="raid-grid"></div>
+      <p class="footnote">A TB on the box is not a TiB on the disk, so usable space also shows in TiB. Rebuild estimates assume one spare writing a single stream at the chosen speed, with a 1.25x parity penalty on RAID 5 and 6. Real controllers differ.</p>
+      <p class="panel-error" id="error-storage" hidden></p>
+    </section>
+
+    <section id="models" class="panel wrap reveal" aria-labelledby="models-h">
+      <div class="panel-head">
+        <h2 id="models-h"><span class="dot" aria-hidden="true"></span>Model Fit</h2>
+        <p class="lede">Set a RAM or VRAM budget and a context length. Each model shows the largest quantization that fits, with the arithmetic spelled out.</p>
+      </div>
+      <div class="controls" role="group" aria-label="Model fit inputs">
+        <div class="field">
+          <label for="ram-budget">RAM or VRAM budget (GB)</label>
+          <input id="ram-budget" type="number" min="1" max="512" step="1" value="8" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="context-tokens">Context length (tokens)</label>
+          <select id="context-tokens">
+            <option value="2048">2,048</option>
+            <option value="4096">4,096</option>
+            <option value="8192" selected>8,192</option>
+            <option value="16384">16,384</option>
+            <option value="32768">32,768</option>
+            <option value="65536">65,536</option>
+          </select>
+        </div>
+        <div class="field field-check">
+          <input id="fits-only" type="checkbox" checked>
+          <label for="fits-only">Show only models that fit</label>
+        </div>
+      </div>
+      <p class="panel-summary mono" id="models-headline" aria-live="polite"></p>
+      <div class="table-scroll">
+        <table class="models-table">
+          <caption class="visually-hidden">Local AI models ranked against the current memory budget</caption>
+          <thead>
+            <tr>
+              <th scope="col">Model</th>
+              <th scope="col">Params</th>
+              <th scope="col">Best quant</th>
+              <th scope="col">Weights</th>
+              <th scope="col">KV cache</th>
+              <th scope="col">Total</th>
+              <th scope="col">Verdict</th>
+            </tr>
+          </thead>
+          <tbody id="models-table-body"></tbody>
+        </table>
+      </div>
+      <p class="footnote">Weights use each quantization's bits per weight. The KV cache assumes fp16 with two tensors per layer. Runtime overhead is a flat 1.00 GB. Specs are planning approximations from public model cards, not measured checkpoints.</p>
+      <p class="panel-error" id="error-models" hidden></p>
+    </section>
+
+    <section id="tidy" class="panel wrap reveal" aria-labelledby="tidy-h">
+      <div class="panel-head">
+        <h2 id="tidy-h"><span class="dot" aria-hidden="true"></span>Tidy Plans</h2>
+        <p class="lede chip-adjacent"><span class="chip chip-demo">Demo dataset</span>The planner works on a labeled demo library with planted duplicates, burst sets, and aging screenshots. Lower the confidence threshold to see what was hiding.</p>
+      </div>
+      <div class="controls" role="group" aria-label="Tidy plan inputs">
+        <div class="field field-wide">
+          <label for="tidy-confidence">Minimum confidence</label>
+          <input id="tidy-confidence" type="range" min="0" max="1" step="0.05" value="0.5" aria-describedby="tidy-confidence-out">
+          <output id="tidy-confidence-out" for="tidy-confidence">50 percent or higher</output>
+        </div>
+        <div class="field">
+          <label for="screenshot-cutoff">Screenshot cutoff</label>
+          <select id="screenshot-cutoff">
+            <option value="2023-01-01">2023-01-01</option>
+            <option value="2024-01-01">2024-01-01</option>
+            <option value="2024-06-01" selected>2024-06-01</option>
+            <option value="2025-01-01">2025-01-01</option>
+          </select>
+        </div>
+        <div class="field field-check">
+          <input id="keep-newest" type="checkbox" checked>
+          <label for="keep-newest">Keep the newest copy when deduplicating</label>
+        </div>
+      </div>
+      <div class="stat-row" id="tidy-stats" aria-label="Demo library stats"></div>
+      <p class="panel-summary mono" id="tidy-headline" aria-live="polite"></p>
+      <div class="tidy-list" id="tidy-actions"></div>
+      <p class="footnote">Confidence bands: identical content hashes rank at 100 percent, burst sets at 75 percent, copy suffix patterns at 65 percent, and aged screenshots at 45 percent. The planner reads only this page's manifest, never a real disk.</p>
+      <p class="panel-error" id="error-tidy" hidden></p>
+    </section>
+
+    <section id="rules" class="panel wrap reveal" aria-labelledby="rules-h">
+      <div class="panel-head">
+        <h2 id="rules-h"><span class="dot" aria-hidden="true"></span>Rule Forge</h2>
+        <p class="lede chip-adjacent"><span class="chip chip-demo">Demo dataset</span>Nine demo rules run against three days of synthetic hourly sensor logs. The detector flags contradictions, shadowed rules, duplicate effects, and references the logs cannot satisfy, then checks each prediction against what actually fired.</p>
+      </div>
+      <div class="rules-layout">
+        <div class="rules-col">
+          <h3>Rules on the books</h3>
+          <div class="rules-list" id="rules-list"></div>
+        </div>
+        <div class="rules-col">
+          <div class="results-head">
+            <h3>Dry run results</h3>
+            <button id="rerun-rules" type="button">Rerun dry run</button>
+          </div>
+          <p class="panel-summary mono" id="rules-summary" aria-live="polite"></p>
+          <h4>Potential conflicts</h4>
+          <div class="conflicts-list" id="conflicts-list"></div>
+          <h4>Validation notes</h4>
+          <div class="validation-list" id="validation-list"></div>
+          <h4>Fires per rule</h4>
+          <div class="table-scroll">
+            <table class="fires-table">
+              <caption class="visually-hidden">How many times each rule fires across the demo logs</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Rule</th>
+                  <th scope="col">Fires</th>
+                  <th scope="col">First fire</th>
+                </tr>
+              </thead>
+              <tbody id="fires-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p class="footnote">A contradiction means two rules can drive the same device in opposite directions at the same moment. Predicted is not observed: the results call out when a possible clash never actually happened in the demo logs.</p>
+      <p class="panel-error" id="error-rules" hidden></p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>NestPulse is a hackathon concept by Aariv Patel, built for the UGREEN Hackathon 2026 on the Automate Your Workflow track. Every number comes from arithmetic on labeled demo data; no NAS hardware is connected and no vendor relationship is claimed.</p>
+      <p class="mono">View source to check the math. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <noscript>
+    <p class="noscript-note">NestPulse needs JavaScript to compute its panels. Everything runs locally in this tab once JavaScript is on.</p>
+  </noscript>
+
+  <script src="js/data-library.js" defer></script>
+  <script src="js/data-rules.js" defer></script>
+  <script src="js/data-sensors.js" defer></script>
+  <script src="js/raid.js" defer></script>
+  <script src="js/models.js" defer></script>
+  <script src="js/tidy.js" defer></script>
+  <script src="js/rules.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>

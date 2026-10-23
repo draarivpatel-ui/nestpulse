@@ -1,0 +1,9 @@
+{
+  "name": "nestpulse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NestPulse, an offline command center dashboard concept for a personal AI NAS. Static, zero dependency, GitHub Pages ready.",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
