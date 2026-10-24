@@ -1,21 +1,23 @@
-/* NestPulse browser app. Reads the shared math modules and renders the four panels.
-   Everything is client side; there are no network calls of any kind. */
+/* NestPulse browser app. Reads the shared math modules and renders the four modules
+   as instrument panels on the diagnostic bench. Everything is client side; there are
+   no network calls of any kind. */
 (function () {
   'use strict';
 
   const $ = function (id) { return document.getElementById(id); };
 
   const LEVEL_ORDER = ['0', '1', '5', '6', '10'];
-  const KIND_LABELS = { photo: 'Photos', screenshot: 'Screenshots', video: 'Videos', document: 'Documents' };
   const CONFLICT_LABELS = {
     contradiction: 'Contradiction',
-    duplicateEffect: 'Duplicate effect',
-    shadowed: 'Shadowed rule',
+    duplicateEffect: 'Duplicate Effect',
+    shadowed: 'Shadowed Rule',
   };
-  const CONFLICT_CLASS = {
-    contradiction: 'chip-no',
-    duplicateEffect: 'chip-info',
-    shadowed: 'chip-warn',
+  /* LEDs stay semantic: a contradiction is a fault, a shadowed rule wants attention,
+     a duplicate effect is informational, so it gets a dim unlit lamp. */
+  const CONFLICT_LED = {
+    contradiction: 'led-fault',
+    duplicateEffect: 'led-dim',
+    shadowed: 'led-warn',
   };
 
   function el(tag, className, text) {
@@ -46,19 +48,64 @@
     return n + ' ' + word + (n === 1 ? '' : 's');
   }
 
+  function chip(text, tone) {
+    const node = el('span', 'chip chip-' + tone);
+    const lamp = el('i', 'led led-' + tone);
+    lamp.setAttribute('aria-hidden', 'true');
+    node.appendChild(lamp);
+    node.appendChild(document.createTextNode(text));
+    return node;
+  }
+
   /* ----------------------------- Storage Doctor ----------------------------- */
 
-  function raidCard(level, result) {
-    const card = el('article', 'card raid-card' + (result.ok ? '' : ' is-invalid'));
+  /* The bay lamp is a real status light: coral when the configuration cannot be
+     built, amber when the projection asks for attention (no redundancy at all, or
+     a rebuild measured in days), mint the rest of the time. */
+  function ledForRaid(level, result) {
+    if (!result.ok) { return 'led-fault'; }
+    if (level === '0') { return 'led-warn'; }
+    if (result.rebuildHours !== null && result.rebuildHours >= 48) { return 'led-warn'; }
+    return 'led-ok';
+  }
+
+  /* One segment per drive: solid for data capacity, hatched for the portion the
+     level spends on redundancy. Decorative; the readout list carries the numbers. */
+  function bayTrack(result) {
+    const track = el('div', 'bay-track');
+    track.setAttribute('aria-hidden', 'true');
+    const dataDrives = Math.round(result.drives - result.redundancyDrives);
+    for (let i = 0; i < result.drives; i += 1) {
+      track.appendChild(el('i', i < dataDrives ? 'seg seg-data' : 'seg seg-redundant'));
+    }
+    return track;
+  }
+
+  function readoutRow(dl, term, value) {
+    const row = el('div', 'readout-row');
+    row.appendChild(el('dt', null, term));
+    row.appendChild(el('dd', 'mono', value));
+    dl.appendChild(row);
+  }
+
+  function raidBay(level, result) {
     const label = NestPulseRaid.LEVELS[level] ? NestPulseRaid.LEVELS[level].label : 'RAID ' + level;
-    card.appendChild(el('h3', 'card-title', label));
+    const card = el('article', 'bay-unit' + (result.ok ? '' : ' is-fault'));
+    const head = el('header', 'bay-unit-head');
+    const lamp = el('i', 'led ' + ledForRaid(level, result));
+    lamp.setAttribute('aria-hidden', 'true');
+    head.appendChild(lamp);
+    head.appendChild(el('h3', 'bay-unit-name', label));
+    card.appendChild(head);
 
     if (!result.ok) {
-      card.appendChild(el('p', 'card-empty', result.error));
+      card.appendChild(el('p', 'bay-empty', result.error));
       return card;
     }
 
-    const big = el('p', 'raid-usable');
+    card.appendChild(bayTrack(result));
+
+    const big = el('p', 'bay-usable');
     big.appendChild(el('span', 'num', result.usableTb.toFixed(1) + ' TB'));
     big.appendChild(el('span', 'sub', 'usable of ' + result.rawTb.toFixed(1) + ' TB raw'));
     card.appendChild(big);
@@ -68,21 +115,16 @@
       + (result.redundancyDrives % 1 === 0 ? result.redundancyDrives : result.redundancyDrives.toFixed(1))
       + ' for redundancy = ' + result.usableTb.toFixed(1) + ' TB usable.'));
 
-    const meta = el('dl', 'card-meta');
-    const efficiency = Math.round(result.efficiency * 100) + '%';
-    meta.appendChild(el('dt', null, 'Efficiency'));
-    meta.appendChild(el('dd', null, efficiency));
-    meta.appendChild(el('dt', null, 'Fault tolerance'));
-    meta.appendChild(el('dd', null, result.guaranteedFaultTolerance === result.bestCaseFaultTolerance
+    const meta = el('dl', 'readout');
+    readoutRow(meta, 'Efficiency', Math.round(result.efficiency * 100) + '%');
+    readoutRow(meta, 'Fault tolerance', result.guaranteedFaultTolerance === result.bestCaseFaultTolerance
       ? plural(result.guaranteedFaultTolerance, 'drive')
-      : '1 guaranteed, up to ' + result.bestCaseFaultTolerance));
-    meta.appendChild(el('dt', null, 'Rebuild'));
-    meta.appendChild(el('dd', null, fmtHours(result.rebuildHours)));
-    meta.appendChild(el('dt', null, 'Usable in TiB'));
-    meta.appendChild(el('dd', null, result.usableTib.toFixed(2) + ' TiB'));
+      : '1 guaranteed, up to ' + result.bestCaseFaultTolerance);
+    readoutRow(meta, 'Rebuild', fmtHours(result.rebuildHours));
+    readoutRow(meta, 'Usable in TiB', result.usableTib.toFixed(2) + ' TiB');
     card.appendChild(meta);
 
-    const notes = el('ul', 'card-notes');
+    const notes = el('ul', 'bay-notes');
     for (const note of result.notes) {
       notes.appendChild(el('li', null, note));
     }
@@ -107,7 +149,7 @@
           driveTb: driveTb,
           rebuildMbps: rebuildMbps,
         });
-        grid.appendChild(raidCard(level, result));
+        grid.appendChild(raidBay(level, result));
       }
     };
     $('drive-count').addEventListener('input', render);
@@ -129,6 +171,22 @@
     return list;
   }
 
+  /* A small pressure gauge under the total: how much of the budget this model and
+     context would consume. Neutral when comfortable, amber when tight, coral when
+     it does not fit at all. */
+  function utilBar(check) {
+    const bar = el('span', 'util-bar');
+    bar.setAttribute('aria-hidden', 'true');
+    const tone = !check.fits ? 'bar-no' : check.verdict === 'tight' ? 'bar-warn' : 'bar-ok';
+    const fill = el('i', 'util-fill ' + tone);
+    const pct = isFinite(check.utilization)
+      ? Math.max(2, Math.min(100, Math.round(check.utilization * 100)))
+      : 100;
+    fill.style.width = pct + '%';
+    bar.appendChild(fill);
+    return bar;
+  }
+
   function modelRow(model, best, budgetBytes, tokens) {
     const quant = best || NestPulseModels.QUANTS[0];
     const check = NestPulseModels.fitCheck(model, quant, budgetBytes, tokens);
@@ -142,14 +200,17 @@
     row.appendChild(el('td', null, best ? best.label : 'None fit'));
     row.appendChild(el('td', 'mono', fmtBytes(NestPulseModels.weightBytes(model.params, quant.bitsPerWeight))));
     row.appendChild(el('td', 'mono', fmtBytes(NestPulseModels.kvBytes(model, tokens))));
-    row.appendChild(el('td', 'mono', fmtBytes(check.totalBytes)));
+
+    const totalCell = el('td', 'mono total-cell');
+    totalCell.appendChild(el('span', null, fmtBytes(check.totalBytes)));
+    totalCell.appendChild(utilBar(check));
+    row.appendChild(totalCell);
 
     const verdictCell = el('td', null);
-    const verdictChipClass = !best ? 'chip-no'
-      : check.verdict === 'comfortable' ? 'chip-ok'
-        : check.verdict === 'tight' ? 'chip-tight' : 'chip-no';
-    verdictCell.appendChild(el('span', 'chip ' + verdictChipClass,
-      best ? (check.verdict === 'comfortable' ? 'Fits well' : 'Fits tight') : 'No fit'));
+    verdictCell.appendChild(best
+      ? chip(check.verdict === 'comfortable' ? 'Fits Well' : 'Fits Tight',
+        check.verdict === 'comfortable' ? 'ok' : 'warn')
+      : chip('No Fit', 'fault'));
     row.appendChild(verdictCell);
 
     const detailRow = el('tr', 'detail-row');
@@ -195,7 +256,8 @@
         body.appendChild(rows[1]);
       }
       $('models-headline').textContent = fitCount + ' of ' + NestPulseModels.CATALOG.length
-        + ' catalog models fit a ' + budgetGb + ' GB budget at ' + tokens.toLocaleString('en-US') + ' tokens.';
+        + ' catalog models fit a budget of ' + budgetGb + ' GB at '
+        + tokens.toLocaleString('en-US') + ' tokens.';
     };
     $('ram-budget').addEventListener('input', render);
     $('context-tokens').addEventListener('change', render);
@@ -212,15 +274,25 @@
     return block;
   }
 
-  function tidyCard(action) {
-    const card = el('article', 'card tidy-card');
-    const head = el('p', 'tidy-head');
-    head.appendChild(el('span', 'chip ' + (action.confidence >= 0.9 ? 'chip-ok' : action.confidence >= 0.6 ? 'chip-info' : 'chip-warn'),
-      Math.round(action.confidence * 100) + '% confident'));
-    head.appendChild(el('span', 'tidy-class', NestPulseTidy.CLASS_LABELS[action.class]));
-    head.appendChild(el('span', 'tidy-bytes mono', fmtBytes(action.bytes)));
-    card.appendChild(head);
-    card.appendChild(el('p', 'tidy-reason', action.reason));
+  /* Mint for a proposal backed by identical content, dim for pattern matches that
+     deserve a look, amber for the low confidence classes. */
+  function tidyLed(action) {
+    if (action.confidence >= 0.9) { return 'led-ok'; }
+    if (action.confidence >= 0.6) { return 'led-dim'; }
+    return 'led-warn';
+  }
+
+  function tidyRow(action) {
+    const row = el('article', 'ledger-row');
+    const head = el('p', 'ledger-head');
+    const lamp = el('i', 'led ' + tidyLed(action));
+    lamp.setAttribute('aria-hidden', 'true');
+    head.appendChild(lamp);
+    head.appendChild(el('span', 'ledger-class', NestPulseTidy.CLASS_LABELS[action.class]));
+    head.appendChild(el('span', 'ledger-conf mono', Math.round(action.confidence * 100) + '% confident'));
+    row.appendChild(head);
+    row.appendChild(el('p', 'ledger-bytes mono', fmtBytes(action.bytes)));
+    row.appendChild(el('p', 'ledger-reason', action.reason));
     const details = el('details', null);
     details.appendChild(el('summary', null, 'Show the files'));
     const body = el('div', 'detail-body');
@@ -231,8 +303,8 @@
       body.appendChild(el('p', 'remove-line', 'Remove: ' + removed.path));
     }
     details.appendChild(body);
-    card.appendChild(details);
-    return card;
+    row.appendChild(details);
+    return row;
   }
 
   function initTidy() {
@@ -266,7 +338,7 @@
       const list = $('tidy-actions');
       clear(list);
       for (const action of plan.actions) {
-        list.appendChild(tidyCard(action));
+        list.appendChild(tidyRow(action));
       }
     };
     $('tidy-confidence').addEventListener('input', render);
@@ -277,54 +349,71 @@
 
   /* -------------------------------- Rule Forge ------------------------------ */
 
-  function ruleCard(rule) {
-    const card = el('article', 'card rule-card');
-    card.appendChild(el('h4', 'card-title', rule.name));
-    const conditions = el('ul', 'chip-row');
+  function ruleRow(rule) {
+    const row = el('article', 'registry-row');
+    row.appendChild(el('h4', 'registry-name', rule.name));
+    const conditions = el('ul', 'term-row');
     conditions.setAttribute('aria-label', 'Conditions for ' + rule.name);
     for (const cond of rule.conditions) {
-      conditions.appendChild(el('li', 'chip chip-quiet', NestPulseRules.describeCondition(cond)));
+      conditions.appendChild(el('li', 'term', NestPulseRules.describeCondition(cond)));
     }
-    card.appendChild(conditions);
-    const actions = el('ul', 'chip-row');
+    row.appendChild(conditions);
+    const actions = el('ul', 'term-row');
     actions.setAttribute('aria-label', 'Actions for ' + rule.name);
     for (const action of rule.actions) {
-      actions.appendChild(el('li', 'chip chip-action', NestPulseRules.describeAction(action)));
+      const item = el('li', 'term term-act');
+      const lamp = el('i', 'led led-ok');
+      lamp.setAttribute('aria-hidden', 'true');
+      item.appendChild(lamp);
+      item.appendChild(document.createTextNode(NestPulseRules.describeAction(action)));
+      actions.appendChild(item);
     }
-    card.appendChild(actions);
-    return card;
+    row.appendChild(actions);
+    return row;
   }
 
+  /* The fault readout panel: every predicted conflict gets a numbered finding,
+     a kind lamp, the finding message, and what the demo logs actually observed. */
   function renderConflicts(pairs) {
     const list = $('conflicts-list');
     clear(list);
     if (pairs.length === 0) {
-      list.appendChild(el('p', 'card-empty', 'No potential conflicts found among these rules.'));
+      list.appendChild(el('p', 'fault-empty', 'No potential conflicts found among these rules.'));
       return;
     }
-    for (const pair of pairs) {
-      const card = el('article', 'card conflict-card');
-      const head = el('p', 'tidy-head');
-      head.appendChild(el('span', 'chip ' + (CONFLICT_CLASS[pair.kind] || 'chip-warn'),
-        CONFLICT_LABELS[pair.kind] || pair.kind));
-      card.appendChild(head);
-      card.appendChild(el('p', 'tidy-reason', pair.message));
+    pairs.forEach(function (pair, index) {
+      const row = el('article', 'fault-row kind-' + pair.kind);
+      const code = el('p', 'fault-code mono');
+      const lamp = el('i', 'led ' + (CONFLICT_LED[pair.kind] || 'led-dim'));
+      lamp.setAttribute('aria-hidden', 'true');
+      code.appendChild(lamp);
+      code.appendChild(document.createTextNode('Finding ' + String(index + 1).padStart(2, '0')));
+      row.appendChild(code);
+      const body = el('div', 'fault-body');
+      body.appendChild(el('p', 'fault-kind', CONFLICT_LABELS[pair.kind] || pair.kind));
+      body.appendChild(el('p', 'fault-msg', pair.message));
       if (pair.observedLine) {
-        card.appendChild(el('p', 'observed mono', pair.observedLine));
+        body.appendChild(el('p', 'fault-observed mono', pair.observedLine));
       }
-      list.appendChild(card);
-    }
+      row.appendChild(body);
+      list.appendChild(row);
+    });
   }
 
   function renderValidation(issues) {
     const list = $('validation-list');
     clear(list);
     if (issues.length === 0) {
-      list.appendChild(el('p', 'card-empty', 'No validation notes. Every rule references known sensors and devices.'));
+      list.appendChild(el('p', 'validation-empty', 'No validation notes. Every rule references known sensors and devices.'));
       return;
     }
     for (const issue of issues) {
-      list.appendChild(el('p', 'validation-note', issue.message));
+      const note = el('p', 'validation-note');
+      const lamp = el('i', 'led led-warn');
+      lamp.setAttribute('aria-hidden', 'true');
+      note.appendChild(lamp);
+      note.appendChild(document.createTextNode(issue.message));
+      list.appendChild(note);
     }
   }
 
@@ -350,12 +439,12 @@
     const list = $('rules-list');
     clear(list);
     for (const rule of rules) {
-      list.appendChild(ruleCard(rule));
+      list.appendChild(ruleRow(rule));
     }
 
     const render = function () {
       const result = NestPulseRules.dryRun(rules, logs);
-      const totalFires = result.reports.reduce((total, report) => total + report.fires, 0);
+      const totalFires = result.reports.reduce(function (total, report) { return total + report.fires; }, 0);
       $('rules-summary').textContent = totalFires + ' rule fires across ' + result.logsCount
         + ' hourly demo samples, with ' + result.conflicts.length + ' potential conflict'
         + (result.conflicts.length === 1 ? '' : 's') + ' predicted.';

@@ -51,7 +51,8 @@ node --test tests/
 
 ## Design and accessibility
 
-- One cohesive palette drawn from drive bay status lights: mint for healthy, amber for attention, coral for fault, on deep navy.
+- A hardware diagnostic bench direction: powder coated charcoal canvas, hairline rules, drive bay slot motifs, and a hero appliance panel with a live pulse trace.
+- Status colors drawn from drive bay lamps and used only as semantic LEDs: mint for healthy, amber for attention, coral for fault. Bone is the single neutral instrument accent.
 - System fonts only, with monospaced tabular numerals for every readout.
 - Semantic HTML with landmarks, labeled controls, live regions for computed results, table captions, keyboard operable native controls, and visible focus rings.
 - Scroll reveals and the hero pulse trace respect `prefers-reduced-motion`.
