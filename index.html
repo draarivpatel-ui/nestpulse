@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NestPulse, a service bench for a personal AI NAS</title>
   <meta name="description" content="NestPulse is an offline, zero dependency diagnostic bench for a personal AI NAS: RAID math, local model fitting, library cleanup planning, and automation rule conflict checks, all on a labeled demo dataset.">
+  <meta name="theme-color" content="#141613">
+  <meta property="og:title" content="NestPulse, a service bench for a personal AI NAS">
+  <meta property="og:description" content="RAID capacity math, local model fitting, library cleanup planning, and automation rule conflict checks on one offline page. Every number is computed in the tab from labeled demo data.">
+  <meta property="og:type" content="website">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23141613'/%3E%3Cpath d='M5 17h6l3-9 4 15 3-8h6' fill='none' stroke='%235fd3a5' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -147,7 +151,7 @@
       <p class="readout-line mono" id="storage-summary" aria-live="polite"></p>
       <div class="bay-grid" id="raid-grid"></div>
       <p class="footnote">A TB on the box is not a TiB on the disk, so usable space also shows in TiB. Rebuild estimates assume one spare writing a single stream at the chosen speed, with a 1.25x parity penalty on RAID 5 and 6. Real controllers differ.</p>
-      <p class="panel-error" id="error-storage" hidden></p>
+      <p class="panel-error" id="error-storage" role="alert" hidden></p>
     </section>
 
     <section id="models" class="module wrap reveal" aria-labelledby="models-h">
@@ -195,7 +199,7 @@
         </table>
       </div>
       <p class="footnote">Weights use each quantization's bits per weight. The KV cache assumes fp16 with two tensors per layer. Runtime overhead is a flat 1.00 GB. Specs are planning approximations from public model cards, not measured checkpoints.</p>
-      <p class="panel-error" id="error-models" hidden></p>
+      <p class="panel-error" id="error-models" role="alert" hidden></p>
     </section>
 
     <section id="tidy" class="module wrap reveal" aria-labelledby="tidy-h">
@@ -227,7 +231,7 @@
       <p class="readout-line mono" id="tidy-headline" aria-live="polite"></p>
       <div class="ledger" id="tidy-actions"></div>
       <p class="footnote">Confidence bands: identical content hashes rank at 100 percent, burst sets at 75 percent, copy suffix patterns at 65 percent, and aged screenshots at 45 percent. The planner reads only this page's manifest, never a real disk.</p>
-      <p class="panel-error" id="error-tidy" hidden></p>
+      <p class="panel-error" id="error-tidy" role="alert" hidden></p>
     </section>
 
     <section id="rules" class="module wrap reveal" aria-labelledby="rules-h">
@@ -271,7 +275,7 @@
         </div>
       </div>
       <p class="footnote">A contradiction means two rules can drive the same device in opposite directions at the same moment. Predicted is not observed: the results call out when a possible clash never actually happened in the demo logs.</p>
-      <p class="panel-error" id="error-rules" hidden></p>
+      <p class="panel-error" id="error-rules" role="alert" hidden></p>
     </section>
   </main>
 

@@ -42,3 +42,39 @@ Shipped demo outputs verified in the same run: the 57 item library plans 10 acti
 - A rule conflict detector that admits what it cannot see: it predicts contradictions, shadowing, and duplicates from time windows, sensor ranges, and device states, then replays 72 hours of synthetic logs and reports which predicted clashes never actually happened.
 - Honesty as a feature: a labeled synthetic library and log generator, TB versus TiB breakdowns, planning approximation notes on every model, and a demo dataset chip wherever synthetic data is used.
 - Verified, not vibes: 79 node:test cases (244 assertion calls) across the four math engines plus static page checks, running in a twentieth of a second with zero installs and zero network.
+
+## Refinement pass 2026-10-24
+
+A defect and polish sweep over the deployed build. No art direction, feature or dependency
+changed. Tests before the pass, 79 passing. Tests after the pass, 79 passing.
+
+Defects found and fixed.
+
+- Without JavaScript the four module sections were invisible. `.reveal` set opacity 0 with no
+  gate, and only app.js adds the `.in` class, so with scripting off the static module
+  headings, ledes and footnotes never showed even though the noscript note promised the page
+  degrades. The reveal styles are now scoped behind `html.js`, and app.js adds that class as
+  its first statement, the same pattern agentpay uses. JavaScript off now leaves every static
+  word visible.
+- Missing share and browser chrome metadata. Added theme color `#141613` to match the canvas
+  token, plus og title, og description and og type, all text only, no external images.
+- The four hidden panel error slots had no live semantics, so a screen reader user would never
+  hear the failure message if a panel hit the safeInit fallback. Each slot now carries
+  role alert, which announces the message when the slot is unhidden.
+
+CSS hygiene. One provably dead rule removed, `.chip-dim` was never emitted (no call site
+passes a dim tone to the chip helper and no static markup uses it). A scripted scan of all
+136 class selectors against the HTML and every render string found nothing else unused. The
+apparent hits `chip-ok`, `chip-fault` and `kind-contradiction` are built by string
+concatenation in app.js and are live.
+
+Checked and found already sound. Token contrast passes WCAG AA everywhere, faint on the
+darkest inset measures 5.31 to 1 and every status color sits above 7 to 1 on its chip or
+panel background, computed from the hex tokens with the WCAG formula. All 28 id references in
+app.js resolve in the HTML, no duplicate ids, no dead listeners, and the console.error in
+safeInit sits behind a catch that is unreachable on a normal load. Labels are real `for`
+associations, the range sliders expose outputs through aria describedby, LEDs and bay
+graphics are aria hidden, and the tables carry visually hidden captions. Reduced motion turns
+off the reveal, trace sweep, LED breathing and transitions. Copy has no em or en dashes, no
+emoji, no all caps kickers. No layout overflows at 320 px, the 44 rem model table scrolls
+inside its own container.

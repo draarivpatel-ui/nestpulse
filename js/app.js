@@ -4,6 +4,10 @@
 (function () {
   'use strict';
 
+  /* Marks the page as script capable so the reveal styles only hide sections
+     when the code that reveals them is running. */
+  document.documentElement.classList.add('js');
+
   const $ = function (id) { return document.getElementById(id); };
 
   const LEVEL_ORDER = ['0', '1', '5', '6', '10'];
