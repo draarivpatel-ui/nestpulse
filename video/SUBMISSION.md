@@ -13,3 +13,5 @@ Built with: vanilla JavaScript, node:test.
 
 Try it: https://aariv.me/nestpulse/
 Code: https://github.com/draarivpatel-ui/nestpulse
+
+Video URL: https://youtu.be/-OWagKOY4-4
