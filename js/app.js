@@ -162,7 +162,7 @@
     render();
   }
 
-  /* -------------------------------- Model Fit ------------------------------- */
+  /* -------------------------------- Memory Fit ------------------------------- */
 
   function quantLadder(model, tokens, budgetBytes) {
     const list = el('ul', 'quant-ladder');
@@ -460,6 +460,119 @@
     render();
   }
 
+  /* ---------------------------- Cross-Panel Insights ------------------------ */
+
+  function fmtGb(bytes) {
+    return (bytes / 1e9).toFixed(2) + ' GB';
+  }
+
+  function initInsights() {
+    const insights = NestPulseInsights;
+    const manifest = NestPulseLibrary.manifest;
+    const rules = NestPulseRuleSet.rules;
+    const logs = NestPulseSensorLogs.buildLogs();
+    const capacity = $('target-capacity');
+    const context = $('context-frontier');
+
+    const render = function () {
+      const targetTb = Number(capacity.value);
+      const tokens = Number(context.value);
+      $('target-capacity-out').textContent = targetTb + ' TB';
+
+      const storage = insights.storageFrontier(targetTb);
+      const memory = insights.memoryFrontier(tokens);
+      const cleanup = insights.cleanupCurve(manifest);
+      const graph = insights.conflictGraph(rules, logs);
+      const digest = insights.buildDigest(manifest, rules, logs, { targetTb: targetTb, tokens: tokens });
+
+      $('insights-summary').textContent =
+        storage.reachableCount + ' of ' + storage.totalCount + ' array configurations reach ' +
+        targetTb + ' TB, ' + memory.fittingCount + ' of ' + memory.catalogCount +
+        ' catalog entries fit at ' + tokens + ' tokens, and the rule set forms ' +
+        graph.components.length + ' conflict groups.';
+
+      $('storage-frontier-lead').textContent = storage.bestRawEfficiency
+        ? 'Least raw capacity: RAID ' + storage.bestRawEfficiency.level + ' with ' +
+          storage.bestRawEfficiency.config.drives + ' x ' + storage.bestRawEfficiency.driveTb +
+          ' TB drives, ' + storage.bestRawEfficiency.config.rawTb + ' TB raw.'
+        : 'No shipped configuration reaches this target.';
+      const storageBody = $('storage-frontier-body');
+      clear(storageBody);
+      for (const row of storage.rows) {
+        const tr = el('tr');
+        tr.appendChild(el('td', 'mono', 'RAID ' + row.level));
+        tr.appendChild(el('td', 'mono', row.driveTb + ' TB'));
+        tr.appendChild(el('td', 'mono', row.config ? String(row.config.drives) : 'n/a'));
+        tr.appendChild(el('td', 'mono', row.config ? row.config.usableTb + ' TB' : 'n/a'));
+        tr.appendChild(el('td', 'mono', row.config ? (row.config.efficiency * 100).toFixed(0) + '%' : 'n/a'));
+        storageBody.appendChild(tr);
+      }
+
+      $('memory-frontier-lead').textContent = memory.cheapest
+        ? 'Easiest fit: ' + memory.cheapest.name + ' at ' + memory.cheapest.exactThresholdGb +
+          ' GB. Hardest: ' + (memory.mostDemanding ? memory.mostDemanding.name : 'n/a') + '.'
+        : 'No catalog entry fits any shipped budget.';
+      const memoryBody = $('memory-frontier-body');
+      clear(memoryBody);
+      for (const row of memory.rows) {
+        const tr = el('tr');
+        tr.appendChild(el('td', null, row.name));
+        tr.appendChild(el('td', 'mono', row.exactThresholdGb === null ? 'n/a' : row.exactThresholdGb + ' GB'));
+        tr.appendChild(el('td', 'mono', row.weightGbAtSmallest + ' GB'));
+        tr.appendChild(el('td', 'mono', row.kvGbAtContext + ' GB'));
+        memoryBody.appendChild(tr);
+      }
+
+      $('cleanup-curve-lead').textContent = cleanup.knee
+        ? 'Largest marginal loss from ' + cleanup.knee.from.toFixed(2) + ' to ' +
+          cleanup.knee.to.toFixed(2) + ' confidence: ' + fmtGb(cleanup.knee.bytesLost) +
+          '. Maximum ' + fmtGb(cleanup.maxSavingBytes) + ' reclaimable.'
+        : 'The demo library has no cleanup curve.';
+      const cleanupBody = $('cleanup-curve-body');
+      clear(cleanupBody);
+      for (const row of cleanup.rows) {
+        const tr = el('tr');
+        tr.appendChild(el('td', 'mono', row.threshold.toFixed(2)));
+        tr.appendChild(el('td', 'mono', String(row.actionCount)));
+        tr.appendChild(el('td', 'mono', fmtGb(row.savingBytes)));
+        tr.appendChild(el('td', 'mono', String(row.suppressedCount)));
+        cleanupBody.appendChild(tr);
+      }
+
+      $('conflict-graph-lead').textContent =
+        graph.conflictCount + ' conflicts across ' + graph.ruleCount + ' rules, largest group of ' +
+        (graph.largestComponent ? graph.largestComponent.size : 0) + ', ' +
+        graph.isolatedCount + ' isolated rules.';
+      const graphBody = $('conflict-graph-body');
+      clear(graphBody);
+      graph.components.forEach(function (component, index) {
+        const tr = el('tr');
+        tr.appendChild(el('td', 'mono', 'Group ' + String(index + 1).padStart(2, '0') +
+          ': ' + component.members.join(', ')));
+        tr.appendChild(el('td', 'mono', String(component.size)));
+        tr.appendChild(el('td', 'mono', String(component.weightedSeverity)));
+        graphBody.appendChild(tr);
+      });
+      const ranking = $('conflict-ranking');
+      clear(ranking);
+      for (const entry of graph.ranking.slice(0, 4)) {
+        const item = el('li');
+        item.appendChild(el('b', null, entry.id));
+        item.appendChild(document.createTextNode(' ' + entry.count + ' conflicts, weighted ' + entry.weighted));
+        ranking.appendChild(item);
+      }
+
+      // A digest is computed even though the panels read the full analyses, so
+      // the pure aggregation path is exercised on every render.
+      void digest;
+    };
+
+    capacity.addEventListener('input', render);
+    capacity.addEventListener('change', render);
+    context.addEventListener('change', render);
+    render();
+  }
+
   /* ------------------------------- Page chrome ------------------------------ */
 
   function initReveal() {
@@ -496,5 +609,6 @@
   safeInit('models', initModels);
   safeInit('tidy', initTidy);
   safeInit('rules', initRules);
+  safeInit('insights', initInsights);
   safeInit('reveal', initReveal);
 })();

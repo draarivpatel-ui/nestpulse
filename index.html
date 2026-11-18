@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NestPulse, a service bench for a personal AI NAS</title>
-  <meta name="description" content="NestPulse is an offline, zero dependency diagnostic bench for a personal AI NAS: RAID math, local model fitting, library cleanup planning, and automation rule conflict checks, all on a labeled demo dataset.">
+  <title>NestPulse, a service bench for a personal home NAS</title>
+  <meta name="description" content="NestPulse is an offline, zero dependency diagnostic bench for a personal home NAS: RAID math, memory budget fitting, library cleanup planning, and automation rule conflict checks, all on a labeled demo dataset.">
   <meta name="theme-color" content="#141613">
-  <meta property="og:title" content="NestPulse, a service bench for a personal AI NAS">
-  <meta property="og:description" content="RAID capacity math, local model fitting, library cleanup planning, and automation rule conflict checks on one offline page. Every number is computed in the tab from labeled demo data.">
+  <meta property="og:title" content="NestPulse, a service bench for a personal home NAS">
+  <meta property="og:description" content="RAID capacity math, memory budget fitting, library cleanup planning, and automation rule conflict checks on one offline page. Every number is computed in the tab from labeled demo data.">
   <meta property="og:type" content="website">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23141613'/%3E%3Cpath d='M5 17h6l3-9 4 15 3-8h6' fill='none' stroke='%235fd3a5' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
@@ -22,9 +22,10 @@
       </a>
       <nav class="rail-nav" aria-label="Module navigation">
         <a href="#storage">Storage Doctor</a>
-        <a href="#models">Model Fit</a>
+        <a href="#models">Memory Fit</a>
         <a href="#tidy">Tidy Plans</a>
         <a href="#rules">Rule Forge</a>
+        <a href="#insights">Insights</a>
       </nav>
       <p class="rail-note mono"><span class="led led-dim" aria-hidden="true"></span>Offline Demo</p>
     </div>
@@ -34,9 +35,9 @@
     <section class="hero wrap" aria-labelledby="hero-h">
       <div class="hero-grid">
         <div class="hero-copy">
-          <p class="plate-tag mono">Personal AI NAS Command Deck</p>
-          <h1 id="hero-h">The service bench for a <em>personal AI NAS</em></h1>
-          <p class="hero-lede">NestPulse sits beside your drives and your local models the way a service panel sits on a well made appliance. Four working planners live on it: capacity math, model fitting, library cleanup, and automation rules. Every number is computed in this tab, every dataset is a labeled demo, and nothing ever leaves the page.</p>
+          <p class="plate-tag mono">Personal Home NAS Command Deck</p>
+          <h1 id="hero-h">The service bench for a <em>personal home NAS</em></h1>
+          <p class="hero-lede">NestPulse is a browser workbench for planning a personal home NAS. Four planning modules and an insights view cover capacity math, memory fitting, cleanup proposals, and automation conflicts. Every number is computed in this tab, every dataset is a labeled demo, and nothing ever leaves the page.</p>
 
           <ul class="module-index" aria-label="The four modules">
             <li>
@@ -47,7 +48,7 @@
             </li>
             <li>
               <a href="#models">
-                <span class="module-name">Model Fit</span>
+                <span class="module-name">Memory Fit</span>
                 <span class="module-desc mono">Quantization ladders against a RAM or VRAM budget</span>
               </a>
             </li>
@@ -156,7 +157,7 @@
 
     <section id="models" class="module wrap reveal" aria-labelledby="models-h">
       <div class="module-head">
-        <h2 id="models-h"><span class="led led-ok" aria-hidden="true"></span>Model Fit</h2>
+        <h2 id="models-h"><span class="led led-ok" aria-hidden="true"></span>Memory Fit</h2>
         <p class="lede">Set a RAM or VRAM budget and a context length. Each model shows the largest quantization that fits, with the arithmetic spelled out.</p>
       </div>
       <div class="control-strip" role="group" aria-label="Model fit inputs">
@@ -183,7 +184,7 @@
       <p class="readout-line mono" id="models-headline" aria-live="polite"></p>
       <div class="table-scroll">
         <table class="data-table models-table">
-          <caption class="visually-hidden">Local AI models ranked against the current memory budget</caption>
+          <caption class="visually-hidden">Local catalog entries ranked against the current memory budget</caption>
           <thead>
             <tr>
               <th scope="col">Model</th>
@@ -198,7 +199,7 @@
           <tbody id="models-table-body"></tbody>
         </table>
       </div>
-      <p class="footnote">Weights use each quantization's bits per weight. The KV cache assumes fp16 with two tensors per layer. Runtime overhead is a flat 1.00 GB. Specs are planning approximations from public model cards, not measured checkpoints.</p>
+      <p class="footnote">Weights use each quantization's bits per weight. The KV cache assumes fp16 with two tensors per layer. Runtime overhead is a flat 1.00 GB. Specs are planning approximations from illustrative planning values, not measured checkpoints.</p>
       <p class="panel-error" id="error-models" role="alert" hidden></p>
     </section>
 
@@ -277,6 +278,88 @@
       <p class="footnote">A contradiction means two rules can drive the same device in opposite directions at the same moment. Predicted is not observed: the results call out when a possible clash never actually happened in the demo logs.</p>
       <p class="panel-error" id="error-rules" role="alert" hidden></p>
     </section>
+
+    <section id="insights" class="module wrap reveal" aria-labelledby="insights-h">
+      <div class="module-head">
+        <h2 id="insights-h"><span class="led led-ok" aria-hidden="true"></span>Cross-Panel Insights</h2>
+        <p class="lede chip-adjacent"><span class="chip chip-warn"><i class="led led-warn" aria-hidden="true"></i>Demo Dataset</span>Frontier searches over the same four math modules: the lowest raw capacity for a target array size, the smallest memory budget per catalog entry, the reclaimable bytes lost when confidence requirements increase, and the groups of rules that clash together. Drive prices are not modeled.</p>
+      </div>
+
+      <div class="insight-controls">
+        <label for="target-capacity">Target usable capacity <span class="mono" id="target-capacity-out">24 TB</span></label>
+        <input id="target-capacity" type="range" min="2" max="80" step="2" value="24" aria-describedby="target-capacity-out">
+        <label for="context-frontier">Context length for the memory frontier</label>
+        <select id="context-frontier">
+          <option value="1024">1,024 tokens</option>
+          <option value="4096">4,096 tokens</option>
+          <option value="8192" selected>8,192 tokens</option>
+          <option value="32768">32,768 tokens</option>
+        </select>
+      </div>
+
+      <p class="readout-line mono" id="insights-summary" aria-live="polite"></p>
+
+      <div class="insight-grid">
+        <article class="insight-card">
+          <h3>Storage frontier</h3>
+          <p class="insight-lead" id="storage-frontier-lead"></p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <caption class="visually-hidden">Smallest drive count reaching the target at each RAID level and drive size</caption>
+              <thead>
+                <tr><th scope="col">Level</th><th scope="col">Drive size</th><th scope="col">Drives</th><th scope="col">Usable</th><th scope="col">Efficiency</th></tr>
+              </thead>
+              <tbody id="storage-frontier-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="insight-card">
+          <h3>Memory frontier</h3>
+          <p class="insight-lead" id="memory-frontier-lead"></p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <caption class="visually-hidden">Exact smallest memory budget that fits each catalog entry</caption>
+              <thead>
+                <tr><th scope="col">Catalog entry</th><th scope="col">Threshold</th><th scope="col">Weights</th><th scope="col">KV cache</th></tr>
+              </thead>
+              <tbody id="memory-frontier-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="insight-card">
+          <h3>Cleanup curve</h3>
+          <p class="insight-lead" id="cleanup-curve-lead"></p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <caption class="visually-hidden">Bytes reclaimed at each confidence threshold</caption>
+              <thead>
+                <tr><th scope="col">Threshold</th><th scope="col">Proposals</th><th scope="col">Reclaimed</th><th scope="col">Suppressed</th></tr>
+              </thead>
+              <tbody id="cleanup-curve-body"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="insight-card">
+          <h3>Conflict graph</h3>
+          <p class="insight-lead" id="conflict-graph-lead"></p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <caption class="visually-hidden">Groups of rules connected by predicted conflicts</caption>
+              <thead>
+                <tr><th scope="col">Group</th><th scope="col">Size</th><th scope="col">Weighted severity</th></tr>
+              </thead>
+              <tbody id="conflict-graph-body"></tbody>
+            </table>
+          </div>
+          <h4 class="sub-head">Most entangled rules</h4>
+          <ul class="insight-ranking" id="conflict-ranking"></ul>
+        </article>
+      </div>
+      <p class="panel-error" id="error-insights" role="alert" hidden></p>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -298,6 +381,7 @@
   <script src="js/models.js" defer></script>
   <script src="js/tidy.js" defer></script>
   <script src="js/rules.js" defer></script>
+  <script src="js/insights.js" defer></script>
   <script src="js/app.js" defer></script>
 </body>
 </html>

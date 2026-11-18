@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const models = require('../js/models.js');
 
-const llama = { id: 't-llama', name: 'Test 8B', params: 8, layers: 32, kvDim: 1024, contextMax: 131072 };
+const reference = { id: 't-ref', name: 'Test 8B', params: 8, layers: 32, kvDim: 1024, contextMax: 131072 };
 const narrow = { id: 't-narrow', name: 'Test Narrow 8B', params: 8, layers: 32, kvDim: 512, contextMax: 131072 };
 const q4 = { id: 'q4t', label: 'Q4 T', bitsPerWeight: 4.8 };
 
@@ -22,27 +22,27 @@ test('Weight size scales linearly with bits per weight', () => {
 });
 
 test('KV cache per token uses two fp16 tensors per layer', () => {
-  assert.equal(models.kvBytesPerToken(llama), 2 * 32 * 1024 * 2);
-  assert.equal(models.kvBytesPerToken(llama), 131072);
+  assert.equal(models.kvBytesPerToken(reference), 2 * 32 * 1024 * 2);
+  assert.equal(models.kvBytesPerToken(reference), 131072);
 });
 
 test('KV cache scales linearly with context length', () => {
-  assert.equal(models.kvBytes(llama, 8192), models.kvBytes(llama, 1024) * 8);
-  assert.equal(models.kvBytes(llama, 0), 0);
+  assert.equal(models.kvBytes(reference, 8192), models.kvBytes(reference, 1024) * 8);
+  assert.equal(models.kvBytes(reference, 0), 0);
 });
 
 test('Narrower KV heads shrink the cache proportionally', () => {
-  assert.equal(models.kvBytesPerToken(llama), models.kvBytesPerToken(narrow) * 2);
+  assert.equal(models.kvBytesPerToken(reference), models.kvBytesPerToken(narrow) * 2);
 });
 
 test('Total bytes are weights plus KV plus runtime overhead', () => {
-  const total = models.totalBytes(llama, q4, 8192);
-  assert.equal(total, models.weightBytes(8, 4.8) + models.kvBytes(llama, 8192) + models.RUNTIME_OVERHEAD_BYTES);
+  const total = models.totalBytes(reference, q4, 8192);
+  assert.equal(total, models.weightBytes(8, 4.8) + models.kvBytes(reference, 8192) + models.RUNTIME_OVERHEAD_BYTES);
 });
 
 test('A model that exactly fills the budget still fits, but tight', () => {
-  const total = models.totalBytes(llama, q4, 8192);
-  const check = models.fitCheck(llama, q4, total, 8192);
+  const total = models.totalBytes(reference, q4, 8192);
+  const check = models.fitCheck(reference, q4, total, 8192);
   assert.equal(check.fits, true);
   assert.equal(check.verdict, 'tight');
   assert.equal(check.freeBytes, 0);
@@ -50,15 +50,15 @@ test('A model that exactly fills the budget still fits, but tight', () => {
 });
 
 test('At 80 percent utilization the verdict is comfortable', () => {
-  const total = models.totalBytes(llama, q4, 8192);
-  const check = models.fitCheck(llama, q4, total / 0.8, 8192);
+  const total = models.totalBytes(reference, q4, 8192);
+  const check = models.fitCheck(reference, q4, total / 0.8, 8192);
   assert.ok(close(check.utilization, 0.8));
   assert.equal(check.verdict, 'comfortable');
 });
 
 test('Over budget models report a shortfall', () => {
-  const total = models.totalBytes(llama, q4, 8192);
-  const check = models.fitCheck(llama, q4, total - 1e9, 8192);
+  const total = models.totalBytes(reference, q4, 8192);
+  const check = models.fitCheck(reference, q4, total - 1e9, 8192);
   assert.equal(check.fits, false);
   assert.equal(check.verdict, 'no');
   assert.equal(check.shortfallBytes, 1e9);
@@ -67,23 +67,23 @@ test('Over budget models report a shortfall', () => {
 
 test('Max context is floored to whole tokens', () => {
   const budget = 16e9;
-  const perToken = models.kvBytesPerToken(llama);
+  const perToken = models.kvBytesPerToken(reference);
   const expected = Math.floor((budget - models.weightBytes(8, 4.8) - models.RUNTIME_OVERHEAD_BYTES) / perToken);
-  assert.equal(models.maxTokens(llama, q4, budget), expected);
+  assert.equal(models.maxTokens(reference, q4, budget), expected);
   assert.ok(expected > 0);
-  assert.equal(models.fitCheck(llama, q4, budget, expected).fits, true);
-  assert.equal(models.fitCheck(llama, q4, budget, expected + 1).fits, false);
+  assert.equal(models.fitCheck(reference, q4, budget, expected).fits, true);
+  assert.equal(models.fitCheck(reference, q4, budget, expected + 1).fits, false);
 });
 
 test('Max context is zero when weights alone overflow the budget', () => {
-  assert.equal(models.maxTokens(llama, q4, 2e9), 0);
+  assert.equal(models.maxTokens(reference, q4, 2e9), 0);
 });
 
 test('Best quantization climbs as the budget grows', () => {
-  const tiny = models.bestQuant(llama, 4.5e9, 0);
-  const small = models.bestQuant(llama, 5.5e9, 0);
-  const large = models.bestQuant(llama, 10e9, 0);
-  const huge = models.bestQuant(llama, 20e9, 0);
+  const tiny = models.bestQuant(reference, 4.5e9, 0);
+  const small = models.bestQuant(reference, 5.5e9, 0);
+  const large = models.bestQuant(reference, 10e9, 0);
+  const huge = models.bestQuant(reference, 20e9, 0);
   assert.equal(tiny.id, 'q2k');
   assert.equal(small.id, 'q3km');
   assert.equal(large.id, 'q8');
@@ -94,14 +94,14 @@ test('Best quantization climbs as the budget grows', () => {
 });
 
 test('Nothing fits an impossible budget', () => {
-  assert.equal(models.bestQuant(llama, models.RUNTIME_OVERHEAD_BYTES, 0), null);
-  const check = models.fitCheck(llama, q4, models.RUNTIME_OVERHEAD_BYTES, 0);
+  assert.equal(models.bestQuant(reference, models.RUNTIME_OVERHEAD_BYTES, 0), null);
+  const check = models.fitCheck(reference, q4, models.RUNTIME_OVERHEAD_BYTES, 0);
   assert.equal(check.fits, false);
   assert.ok(check.shortfallBytes > 0);
 });
 
 test('The arithmetic line names the model, quant, and totals', () => {
-  const line = models.arithmeticLine(llama, q4, 8192, 8e9);
+  const line = models.arithmeticLine(reference, q4, 8192, 8e9);
   assert.ok(line.includes('Test 8B'));
   assert.ok(line.includes('Q4 T'));
   assert.ok(line.includes('GB'));
@@ -123,14 +123,14 @@ test('Catalog integrity: unique ids, positive specs, sorted quants', () => {
   }
 });
 
-test('Qwen3 8B at Q4 K M weighs about 4.92 GB', () => {
-  const qwen = models.CATALOG.find((m) => m.id === 'qwen3-8b');
+test('The 8.2B balanced entry at Q4 K M weighs about 4.92 GB', () => {
+  const balanced = models.CATALOG.find((m) => m.id === 'mid-82');
   const q4km = models.QUANTS.find((q) => q.id === 'q4km');
-  assert.ok(close(models.weightBytes(qwen.params, q4km.bitsPerWeight), 4.92e9, 1e6));
+  assert.ok(close(models.weightBytes(balanced.params, q4km.bitsPerWeight), 4.92e9, 1e6));
 });
 
 test('The distill model carries a smaller cache than its same size peer', () => {
-  const distill = models.CATALOG.find((m) => m.id === 'ds-r1-qwen-7b');
-  const mistral = models.CATALOG.find((m) => m.id === 'mistral-7b');
-  assert.ok(models.kvBytesPerToken(distill) < models.kvBytesPerToken(mistral));
+  const distill = models.CATALOG.find((m) => m.id === 'mid-76');
+  const standard = models.CATALOG.find((m) => m.id === 'mid-72');
+  assert.ok(models.kvBytesPerToken(distill) < models.kvBytesPerToken(standard));
 });

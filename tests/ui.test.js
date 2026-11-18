@@ -22,6 +22,7 @@ test('No forbidden dash characters anywhere in shipped copy', () => {
     'js/models.js',
     'js/tidy.js',
     'js/rules.js',
+    'js/insights.js',
     'js/app.js',
     'js/data-library.js',
     'js/data-rules.js',
@@ -77,6 +78,7 @@ test('Every browser script compiles cleanly', () => {
     'js/models.js',
     'js/tidy.js',
     'js/rules.js',
+    'js/insights.js',
     'js/app.js',
   ];
   for (const file of files) {
@@ -101,5 +103,5 @@ test('The package declares zero dependencies', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.deepEqual(pkg.dependencies || {}, {});
   assert.deepEqual(pkg.devDependencies || {}, {});
-  assert.equal(pkg.scripts.test, 'node --test tests/');
+  assert.equal(pkg.scripts.test, 'node --test tests/*.test.js');
 });

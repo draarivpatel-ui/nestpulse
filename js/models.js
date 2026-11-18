@@ -1,6 +1,6 @@
-/* NestPulse Model Fit math: quantized weight sizes, KV cache, and budget checks.
+/* NestPulse Memory Fit math: quantized weight sizes, KV cache, and budget checks.
    Shared by the browser UI (window.NestPulseModels) and the node:test suites (module.exports).
-   Model specs are planning approximations from public model cards, not measured checkpoints. */
+   Catalog specs are illustrative planning values, not measured checkpoints. */
 (function (root, factory) {
   'use strict';
   const api = factory();
@@ -25,20 +25,20 @@
   ].sort(function (a, b) { return a.bitsPerWeight - b.bitsPerWeight; });
 
   const CATALOG = [
-    { id: 'qwen3-0.6b', name: 'Qwen3 0.6B', family: 'Qwen3', params: 0.6, layers: 28, kvDim: 1024, contextMax: 40960 },
-    { id: 'qwen3-1.7b', name: 'Qwen3 1.7B', family: 'Qwen3', params: 1.7, layers: 28, kvDim: 1024, contextMax: 40960 },
-    { id: 'llama-3.2-3b', name: 'Llama 3.2 3B', family: 'Llama', params: 3.2, layers: 28, kvDim: 1024, contextMax: 131072 },
-    { id: 'qwen3-4b', name: 'Qwen3 4B', family: 'Qwen3', params: 4, layers: 36, kvDim: 1024, contextMax: 40960 },
-    { id: 'gemma-3-4b', name: 'Gemma 3 4B', family: 'Gemma', params: 4.3, layers: 34, kvDim: 1024, contextMax: 131072 },
-    { id: 'ds-r1-qwen-7b', name: 'DeepSeek R1 Distill Qwen 7B', family: 'DeepSeek', params: 7.6, layers: 28, kvDim: 512, contextMax: 131072 },
-    { id: 'mistral-7b', name: 'Mistral 7B v0.3', family: 'Mistral', params: 7.2, layers: 32, kvDim: 1024, contextMax: 32768 },
-    { id: 'qwen3-8b', name: 'Qwen3 8B', family: 'Qwen3', params: 8.2, layers: 36, kvDim: 1024, contextMax: 40960 },
-    { id: 'llama-3.1-8b', name: 'Llama 3.1 8B', family: 'Llama', params: 8, layers: 32, kvDim: 1024, contextMax: 131072 },
-    { id: 'qwen3-14b', name: 'Qwen3 14B', family: 'Qwen3', params: 14, layers: 40, kvDim: 1024, contextMax: 40960 },
-    { id: 'phi-4-14b', name: 'Phi 4 14B', family: 'Phi', params: 14, layers: 40, kvDim: 1280, contextMax: 16384 },
-    { id: 'gemma-3-27b', name: 'Gemma 3 27B', family: 'Gemma', params: 27, layers: 62, kvDim: 2048, contextMax: 131072 },
-    { id: 'qwen3-32b', name: 'Qwen3 32B', family: 'Qwen3', params: 32, layers: 64, kvDim: 1024, contextMax: 40960 },
-    { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', family: 'Llama', params: 70, layers: 80, kvDim: 1024, contextMax: 131072 },
+    { id: 'tiny-06', name: 'Compact 0.6B', family: 'Compact', params: 0.6, layers: 28, kvDim: 1024, contextMax: 40960 },
+    { id: 'tiny-17', name: 'Compact 1.7B', family: 'Compact', params: 1.7, layers: 28, kvDim: 1024, contextMax: 40960 },
+    { id: 'small-32', name: 'Balanced 3.2B', family: 'Balanced', params: 3.2, layers: 28, kvDim: 1024, contextMax: 131072 },
+    { id: 'small-40', name: 'Balanced 4B', family: 'Balanced', params: 4, layers: 36, kvDim: 1024, contextMax: 40960 },
+    { id: 'small-43', name: 'Wide 4.3B', family: 'Wide', params: 4.3, layers: 34, kvDim: 1024, contextMax: 131072 },
+    { id: 'mid-76', name: 'Distilled 7.6B', family: 'Distilled', params: 7.6, layers: 28, kvDim: 512, contextMax: 131072 },
+    { id: 'mid-72', name: 'Standard 7.2B', family: 'Standard', params: 7.2, layers: 32, kvDim: 1024, contextMax: 32768 },
+    { id: 'mid-82', name: 'Balanced 8.2B', family: 'Balanced', params: 8.2, layers: 36, kvDim: 1024, contextMax: 40960 },
+    { id: 'mid-80', name: 'Standard 8B', family: 'Standard', params: 8, layers: 32, kvDim: 1024, contextMax: 131072 },
+    { id: 'large-14', name: 'Balanced 14B', family: 'Balanced', params: 14, layers: 40, kvDim: 1024, contextMax: 40960 },
+    { id: 'large-14w', name: 'Wide 14B', family: 'Wide', params: 14, layers: 40, kvDim: 1280, contextMax: 16384 },
+    { id: 'xl-27', name: 'Wide 27B', family: 'Wide', params: 27, layers: 62, kvDim: 2048, contextMax: 131072 },
+    { id: 'xl-32', name: 'Deep 32B', family: 'Deep', params: 32, layers: 64, kvDim: 1024, contextMax: 40960 },
+    { id: 'xxl-70', name: 'Deep 70B', family: 'Deep', params: 70, layers: 80, kvDim: 1024, contextMax: 131072 },
   ];
 
   function weightBytes(paramsBillions, bitsPerWeight) {
