@@ -9,7 +9,6 @@ const assert = require('node:assert/strict');
 const raid = require('../js/raid.js');
 const models = require('../js/models.js');
 const tidy = require('../js/tidy.js');
-const rules = require('../js/rules.js');
 const insights = require('../js/insights.js');
 const library = require('../js/data-library.js');
 const ruleSet = require('../js/data-rules.js');

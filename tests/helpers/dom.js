@@ -195,4 +195,4 @@ function runApp(env) {
   return env;
 }
 
-module.exports = { repoRoot, parsePage, makeDom, runApp, El };
+module.exports = { repoRoot, parsePage, makeDom, runApp };
