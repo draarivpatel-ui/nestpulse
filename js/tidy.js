@@ -38,12 +38,16 @@
     return i > 0 ? name.slice(0, i) : name;
   }
 
+  /* Strip download-copy markers until none remain at the end, in either order,
+     so 'x (1) copy' and 'x copy (1)' normalize to the same key. */
   function normalizeName(name) {
-    return stripExtension(name)
-      .replace(/\s*\(\d+\)\s*$/, '')
-      .replace(/\s+copy$/i, '')
-      .trim()
-      .toLowerCase();
+    let base = stripExtension(name);
+    let previous = null;
+    while (base !== previous) {
+      previous = base;
+      base = base.replace(/\s*\(\d+\)\s*$/, '').replace(/\s+copy$/i, '');
+    }
+    return base.trim().toLowerCase();
   }
 
   function isCopiedName(name) {
@@ -69,13 +73,20 @@
     return items.reduce(function (total, item) { return total + item.bytes; }, 0);
   }
 
+  /* A content hash alone does not prove identical content: two entries that share
+     a synthetic short hash but report different sizes cannot be the same bytes,
+     so the group key is hash and size together. */
   function groupByHash(manifest) {
     const groups = new Map();
     for (const item of manifest.items) {
-      if (!groups.has(item.contentHash)) {
-        groups.set(item.contentHash, []);
+      if (typeof item.contentHash !== 'string' || item.contentHash.length === 0) {
+        continue;
       }
-      groups.get(item.contentHash).push(item);
+      const key = item.contentHash + '|' + item.bytes;
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key).push(item);
     }
     return groups;
   }
@@ -93,7 +104,7 @@
   }
 
   function summarizeLibrary(manifest) {
-    const byKind = {};
+    const byKind = Object.create(null);
     let totalBytes = 0;
     for (const item of manifest.items) {
       if (!byKind[item.kind]) {
@@ -123,6 +134,7 @@
   /* Classes run highest confidence first; anything consumed by an earlier class is
      never proposed again, so no file is removed by two different actions. */
   function buildActions(manifest, options) {
+    options = options || {};
     const opts = {
       keepNewest: options.keepNewest !== false,
       screenshotCutoff: options.screenshotCutoff || '2024-06-01',
@@ -131,7 +143,7 @@
     const actions = [];
 
     for (const pair of groupByHash(manifest)) {
-      const hash = pair[0];
+      const key = pair[0];
       const items = pair[1];
       if (items.length < 2) { continue; }
       const keeper = pickKeeper(items, opts.keepNewest);
@@ -141,13 +153,13 @@
       if (remove.length === 0) { continue; }
       for (const item of items) { consumed.add(item.id); }
       actions.push({
-        id: 'exact:' + hash,
+        id: 'exact:' + key,
         class: 'exact',
         confidence: CONFIDENCE.exact,
         bytes: sumBytes(remove),
         keep: keeper,
         remove: remove,
-        reason: 'Identical content hash in ' + (items.length) + ' files. Keeps ' + keeper.path + '.',
+        reason: 'Identical content hash and size in ' + (items.length) + ' files. Keeps ' + keeper.path + '.',
       });
     }
 
@@ -164,7 +176,11 @@
       if (items.length < 2) { continue; }
       const bytes = items[0].bytes;
       const sameBytes = items.every(function (item) { return item.bytes === bytes; });
-      const distinctHashes = new Set(items.map(function (item) { return item.contentHash; })).size >= 2;
+      const hashed = items.filter(function (item) {
+        return typeof item.contentHash === 'string' && item.contentHash.length > 0;
+      });
+      const distinctHashes = hashed.length === items.length
+        && new Set(hashed.map(function (item) { return item.contentHash; })).size >= 2;
       const hasCopyName = items.some(function (item) { return isCopiedName(baseName(item.path)); });
       if (!sameBytes || !distinctHashes || !hasCopyName) { continue; }
       const sorted = items.slice().sort(function (a, b) {
@@ -235,10 +251,19 @@
   }
 
   function planCleanup(manifest, options) {
+    if (!manifest || !Array.isArray(manifest.items)) {
+      return {
+        actions: [],
+        potentialSavingBytes: 0,
+        suppressed: { count: 0, bytes: 0 },
+        totalLibraryBytes: 0,
+      };
+    }
+    const rawMin = options && options.minConfidence;
     const opts = {
       keepNewest: !options || options.keepNewest !== false,
       screenshotCutoff: (options && options.screenshotCutoff) || '2024-06-01',
-      minConfidence: (options && options.minConfidence !== undefined) ? options.minConfidence : 0.5,
+      minConfidence: Number.isFinite(Number(rawMin)) ? Number(rawMin) : 0.5,
     };
     const all = rankActions(buildActions(manifest, opts));
     const threshold = opts.minConfidence - 1e-9;

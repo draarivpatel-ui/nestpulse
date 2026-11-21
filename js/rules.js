@@ -100,8 +100,11 @@
     return out;
   }
 
+  /* A condition whose value cannot coerce to a finite number, or whose operator
+     is unknown, has no interval: it can never be satisfied. */
   function sensorInterval(cond) {
-    const v = cond.value;
+    const v = Number(cond.value);
+    if (!Number.isFinite(v)) { return null; }
     switch (cond.op) {
       case '>': return { lo: v, loClosed: false, hi: Infinity, hiClosed: false };
       case '>=': return { lo: v, loClosed: true, hi: Infinity, hiClosed: false };
@@ -124,6 +127,26 @@
     if (lo < hi) { return true; }
     if (lo === hi) { return intervalContainsPoint(a, lo) && intervalContainsPoint(b, lo); }
     return false;
+  }
+
+  /* Fold a list of intervals into their running intersection, or null the
+     moment two of them separate and no reading can satisfy all of them. */
+  function intersectAllIntervals(intervals) {
+    let current = intervals[0];
+    for (let k = 1; k < intervals.length; k += 1) {
+      if (!intervalsIntersect(current, intervals[k])) { return null; }
+      current = {
+        lo: Math.max(current.lo, intervals[k].lo),
+        loClosed: current.lo > intervals[k].lo ? current.loClosed
+          : intervals[k].lo > current.lo ? intervals[k].loClosed
+            : (current.loClosed && intervals[k].loClosed),
+        hi: Math.min(current.hi, intervals[k].hi),
+        hiClosed: current.hi < intervals[k].hi ? current.hiClosed
+          : intervals[k].hi < current.hi ? intervals[k].hiClosed
+            : (current.hiClosed && intervals[k].hiClosed),
+      };
+    }
+    return current;
   }
 
   function intervalContains(outer, inner) {
@@ -175,8 +198,22 @@
     return rule.conditions.filter(function (cond) { return cond.type === type; });
   }
 
+  /* The device states one rule requires, or null when the rule demands the same
+     device in two different states and so can never be satisfied at all. */
+  function requiredDeviceStates(rule) {
+    const states = new Map();
+    for (const cond of condsOf(rule, 'device')) {
+      if (states.has(cond.device) && states.get(cond.device) !== cond.state) {
+        return null;
+      }
+      states.set(cond.device, cond.state);
+    }
+    return states;
+  }
+
   /* Can both rules be satisfied at the same moment? Checks time windows, sensor
-     ranges, and required device states for contradictions. */
+     ranges, and required device states for contradictions, including a rule whose
+     own device conditions already contradict each other. */
   function rulesCanCooccur(ruleA, ruleB) {
     const joint = intersectSegmentSets(
       foldSegments(condsOf(ruleA, 'time')),
@@ -190,28 +227,18 @@
     for (const sensor of sensorNames) {
       const conds = condsOf(ruleA, 'sensor').concat(condsOf(ruleB, 'sensor'))
         .filter(function (c) { return c.sensor === sensor; });
-      let intervals = conds.map(sensorInterval);
-      if (intervals.some(function (i) { return i === null; })) { continue; }
-      let current = intervals[0];
-      for (let k = 1; k < intervals.length; k += 1) {
-        if (!intervalsIntersect(current, intervals[k])) { return false; }
-        current = {
-          lo: Math.max(current.lo, intervals[k].lo),
-          loClosed: current.lo > intervals[k].lo ? current.loClosed
-            : intervals[k].lo > current.lo ? intervals[k].loClosed
-              : (current.loClosed && intervals[k].loClosed),
-          hi: Math.min(current.hi, intervals[k].hi),
-          hiClosed: current.hi < intervals[k].hi ? current.hiClosed
-            : intervals[k].hi < current.hi ? intervals[k].hiClosed
-              : (current.hiClosed && intervals[k].hiClosed),
-        };
-      }
+      const intervals = conds.map(sensorInterval);
+      /* A condition with no interval can never be satisfied, so the rules can
+         never be satisfied at the same moment either. */
+      if (intervals.some(function (i) { return i === null; })) { return false; }
+      if (intersectAllIntervals(intervals) === null) { return false; }
     }
 
-    const devicesA = {};
-    condsOf(ruleA, 'device').forEach(function (c) { devicesA[c.device] = c.state; });
-    for (const cond of condsOf(ruleB, 'device')) {
-      if (Object.prototype.hasOwnProperty.call(devicesA, cond.device) && devicesA[cond.device] !== cond.state) {
+    const statesA = requiredDeviceStates(ruleA);
+    const statesB = requiredDeviceStates(ruleB);
+    if (statesA === null || statesB === null) { return false; }
+    for (const pair of statesB) {
+      if (statesA.has(pair[0]) && statesA.get(pair[0]) !== pair[1]) {
         return false;
       }
     }
@@ -219,7 +246,7 @@
   }
 
   function actionMap(rule) {
-    const map = {};
+    const map = Object.create(null);
     for (const action of rule.actions) {
       map[action.device] = action.command;
     }
@@ -252,6 +279,7 @@
       for (let j = i + 1; j < rules.length; j += 1) {
         const ruleA = rules[i];
         const ruleB = rules[j];
+        if (ruleA === ruleB) { continue; }
         const cooccur = rulesCanCooccur(ruleA, ruleB);
         if (!cooccur) { continue; }
         if (actionsEqual(ruleA, ruleB)) {
@@ -343,12 +371,50 @@
         if (OPS.indexOf(cond.op) === -1) {
           issues.push({ ruleId: rule.id, message: '"' + rule.name + '" uses an unknown comparison operator on sensor "' + cond.sensor + '".' });
         }
+        if (!Number.isFinite(Number(cond.value))) {
+          issues.push({ ruleId: rule.id, message: '"' + rule.name + '" compares sensor "' + cond.sensor + '" with no usable numeric value, so it can never fire.' });
+        }
       } else if (cond.type === 'device') {
         if (!Object.prototype.hasOwnProperty.call(DEVICE_CATALOG, cond.device)) {
           issues.push({ ruleId: rule.id, message: '"' + rule.name + '" references the device "' + cond.device + '", which is not in the device catalog.' });
         }
+        if (COMMANDS.indexOf(cond.state) === -1) {
+          issues.push({ ruleId: rule.id, message: '"' + rule.name + '" waits for the device "' + cond.device + '" to be "' + cond.state + '", which is not a state it can have, so it can never fire.' });
+        }
       }
     }
+    const timeConds = condsOf(rule, 'time');
+    if (timeConds.length > 1
+        && timeConds.every(function (c) { return windowSegments(c).length > 0; })
+        && foldSegments(timeConds).length === 0) {
+      issues.push({ ruleId: rule.id, message: '"' + rule.name + '" has time windows that never overlap, so it can never fire.' });
+    }
+    const sensorCondsByName = new Map();
+    for (const cond of condsOf(rule, 'sensor')) {
+      if (!sensorCondsByName.has(cond.sensor)) { sensorCondsByName.set(cond.sensor, []); }
+      sensorCondsByName.get(cond.sensor).push(cond);
+    }
+    for (const pair of sensorCondsByName) {
+      if (pair[1].length < 2) { continue; }
+      const intervals = pair[1].map(sensorInterval);
+      if (intervals.every(function (i) { return i !== null; }) && intersectAllIntervals(intervals) === null) {
+        issues.push({ ruleId: rule.id, message: '"' + rule.name + '" needs the sensor "' + pair[0] + '" inside two ranges that never meet, so it can never fire.' });
+      }
+    }
+    const deviceNeeds = new Map();
+    const deviceConflicts = new Set();
+    for (const cond of rule.conditions) {
+      if (cond.type !== 'device') { continue; }
+      if (!deviceNeeds.has(cond.device)) {
+        deviceNeeds.set(cond.device, cond.state);
+      } else if (deviceNeeds.get(cond.device) !== cond.state && !deviceConflicts.has(cond.device)) {
+        deviceConflicts.add(cond.device);
+        issues.push({ ruleId: rule.id, message: '"' + rule.name + '" needs the ' + (DEVICE_CATALOG[cond.device] ? DEVICE_CATALOG[cond.device].label : cond.device)
+          + ' to be both ' + deviceNeeds.get(cond.device) + ' and ' + cond.state + ', so it can never fire.' });
+      }
+    }
+    const actionCommands = new Map();
+    const actionConflicts = new Set();
     for (const action of rule.actions) {
       if (!Object.prototype.hasOwnProperty.call(DEVICE_CATALOG, action.device)) {
         issues.push({ ruleId: rule.id, message: '"' + rule.name + '" controls the device "' + action.device + '", which is not in the device catalog.' });
@@ -356,6 +422,14 @@
       if (COMMANDS.indexOf(action.command) === -1) {
         issues.push({ ruleId: rule.id, message: '"' + rule.name + '" uses the unknown command "' + action.command + '".' });
       }
+      if (actionCommands.has(action.device)
+          && actionCommands.get(action.device) !== action.command
+          && !actionConflicts.has(action.device)) {
+        actionConflicts.add(action.device);
+        issues.push({ ruleId: rule.id, message: '"' + rule.name + '" gives the device "' + action.device + '" both the "' + actionCommands.get(action.device)
+          + '" and "' + action.command + '" commands; only the last one would run.' });
+      }
+      actionCommands.set(action.device, action.command);
     }
     return issues;
   }
@@ -455,7 +529,12 @@
     });
 
     const validation = [];
+    const seenIds = new Set();
     for (const rule of rules) {
+      if (seenIds.has(rule.id)) {
+        validation.push({ ruleId: rule.id, message: '"' + rule.name + '" shares the id "' + rule.id + '" with another rule, so per-id reports are ambiguous.' });
+      }
+      seenIds.add(rule.id);
       for (const issue of validateRule(rule)) { validation.push(issue); }
     }
 

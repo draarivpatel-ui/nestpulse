@@ -41,7 +41,9 @@
     const opts = options || {};
     const sizes = Array.isArray(opts.driveSizesTb) ? opts.driveSizesTb : [2, 4, 8, 12, 16, 20];
     const levels = Array.isArray(opts.levels) ? opts.levels : ['0', '1', '5', '6', '10'];
-    const maxDrives = Math.max(2, Math.floor(opts.maxDrives || 16));
+    const rawMax = Number(opts.maxDrives);
+    const maxDrives = opts.maxDrives === undefined ? 16
+      : (Number.isFinite(rawMax) ? Math.max(0, Math.floor(rawMax)) : 16);
     const target = Math.max(0, Number(targetTb) || 0);
     const rows = [];
     for (const level of levels) {
@@ -94,7 +96,10 @@
    */
   function memoryFrontier(tokens, options) {
     const opts = options || {};
-    const context = Math.max(0, Math.floor(opts.tokens || tokens || 8192));
+    const requested = opts.tokens !== undefined ? opts.tokens
+      : (tokens !== undefined ? tokens : 8192);
+    const req = Number(requested);
+    const context = Number.isFinite(req) ? Math.max(0, Math.floor(req)) : 0;
     const budgets = Array.isArray(opts.budgetsGb) ? opts.budgetsGb : [2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256];
     const rows = [];
     for (const model of models.CATALOG) {
@@ -132,7 +137,9 @@
         exactThresholdGb: exactBudgetGb,
         quantAtThreshold: thresholdQuant ? thresholdQuant.label : null,
         weightGbAtSmallest: round(models.weightBytes(model.params, smallest.bitsPerWeight) / 1e9, 3),
-        kvGbAtContext: round(models.kvBytes(model, context) / 1e9, 3)
+        kvGbAtContext: round(models.kvBytes(model, context) / 1e9, 3),
+        contextMax: model.contextMax,
+        withinContext: !(context > model.contextMax)
       });
     }
     const fitting = rows.filter(function (row) { return row.exactThresholdGb !== null; });
@@ -179,7 +186,7 @@
       };
     });
     let knee = null;
-    let biggestLoss = -1;
+    let biggestLoss = 0;
     for (let i = 1; i < rows.length; i += 1) {
       const loss = rows[i - 1].savingBytes - rows[i].savingBytes;
       if (loss > biggestLoss) { biggestLoss = loss; knee = { from: rows[i - 1].threshold, to: rows[i].threshold, bytesLost: loss }; }
@@ -266,8 +273,8 @@
 
   function buildDigest(manifest, ruleSet, logs, options) {
     const opts = options || {};
-    const storage = storageFrontier(opts.targetTb || 24, opts.storage);
-    const memory = memoryFrontier(opts.tokens || 8192, opts.memory);
+    const storage = storageFrontier(opts.targetTb !== undefined ? opts.targetTb : 24, opts.storage);
+    const memory = memoryFrontier(opts.tokens !== undefined ? opts.tokens : 8192, opts.memory);
     const cleanup = cleanupCurve(manifest, opts.cleanup);
     const graph = conflictGraph(ruleSet, logs);
     return {

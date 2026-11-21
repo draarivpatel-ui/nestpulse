@@ -68,10 +68,11 @@
   /* options: { level, drives, driveTb, rebuildMbps }
      Returns a plain result object with every number the UI needs, or { ok: false, error }. */
   function computeRaid(options) {
-    const level = String(options.level);
-    const drives = Math.floor(Number(options.drives));
-    const driveTb = Number(options.driveTb);
-    const rebuildMbps = options.rebuildMbps === undefined ? 0 : Number(options.rebuildMbps);
+    const opts = options || {};
+    const level = String(opts.level);
+    const drives = Math.floor(Number(opts.drives));
+    const driveTb = Number(opts.driveTb);
+    const rebuildMbps = opts.rebuildMbps === undefined ? 0 : Number(opts.rebuildMbps);
 
     if (!Object.prototype.hasOwnProperty.call(LEVELS, level)) {
       return { ok: false, error: 'Unknown RAID level ' + level + '.' };
@@ -93,6 +94,9 @@
     const bytesPerDrive = driveTb * TB;
     const rawBytes = bytesPerDrive * drives;
     const usableBytes = usableBytesFor(level, drives, bytesPerDrive);
+    if (!Number.isFinite(usableBytes) || !Number.isFinite(rawBytes)) {
+      return { ok: false, error: 'These inputs produce numbers too large to display.' };
+    }
     const redundancyDrives = drives - usableBytes / bytesPerDrive;
     const efficiency = usableBytes / rawBytes;
     const bestCase = bestCaseFaultTolerance(level, drives);

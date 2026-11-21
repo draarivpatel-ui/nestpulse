@@ -35,11 +35,13 @@
     while (node.firstChild) { node.removeChild(node.firstChild); }
   }
 
+  /* Unit boundaries sit just below the round-trip point so a value never
+     renders as "1000.0" of the smaller unit. */
   function fmtBytes(bytes) {
     if (!isFinite(bytes)) { return 'Not applicable'; }
-    if (bytes >= 1e9) { return (bytes / 1e9).toFixed(2) + ' GB'; }
-    if (bytes >= 1e6) { return (bytes / 1e6).toFixed(1) + ' MB'; }
-    if (bytes >= 1e3) { return (bytes / 1e3).toFixed(1) + ' KB'; }
+    if (bytes >= 999.95e6) { return (bytes / 1e9).toFixed(2) + ' GB'; }
+    if (bytes >= 999.95e3) { return (bytes / 1e6).toFixed(1) + ' MB'; }
+    if (bytes >= 999.5) { return (bytes / 1e3).toFixed(1) + ' KB'; }
     return Math.round(bytes) + ' B';
   }
 
@@ -138,12 +140,19 @@
 
   function initStorage() {
     const render = function () {
-      const drives = Math.round(Number($('drive-count').value));
+      const input = $('drive-count');
+      const maxDrives = Number(input.max) > 0 ? Math.floor(Number(input.max)) : 64;
+      const rawDrives = Math.round(Number(input.value));
+      const clamped = Number.isFinite(rawDrives) && rawDrives > maxDrives;
+      const drives = clamped ? maxDrives : rawDrives;
       const driveTb = Number($('drive-size').value);
       const rebuildMbps = Number($('rebuild-speed').value);
       $('rebuild-speed-out').textContent = rebuildMbps + ' MB per second';
-      $('storage-summary').textContent = 'Capacity math for ' + plural(drives, 'drive')
-        + ' of ' + driveTb + ' TB each, with rebuilds at ' + rebuildMbps + ' MB per second.';
+      $('storage-summary').textContent = Number.isFinite(drives) && drives >= 1
+        ? 'Capacity math for ' + plural(drives, 'drive')
+          + ' of ' + driveTb + ' TB each, with rebuilds at ' + rebuildMbps + ' MB per second.'
+          + (clamped ? ' The count is capped at the field maximum of ' + maxDrives + '.' : '')
+        : 'Drive count needs to be a positive whole number to see capacity math.';
       const grid = $('raid-grid');
       clear(grid);
       for (const level of LEVEL_ORDER) {
@@ -215,6 +224,10 @@
       ? chip(check.verdict === 'comfortable' ? 'Fits Well' : 'Fits Tight',
         check.verdict === 'comfortable' ? 'ok' : 'warn')
       : chip('No Fit', 'fault'));
+    if (check.beyondContext) {
+      verdictCell.appendChild(el('span', 'verdict-note', 'Over the '
+        + check.contextMax.toLocaleString('en-US') + '-token rated context'));
+    }
     row.appendChild(verdictCell);
 
     const detailRow = el('tr', 'detail-row');
@@ -227,8 +240,10 @@
     if (best) {
       body.appendChild(el('p', null, NestPulseModels.arithmeticLine(model, best, tokens, budgetBytes)));
       const maxTokens = NestPulseModels.maxTokens(model, best, budgetBytes);
+      const atCeiling = check.contextMax !== null && maxTokens === check.contextMax;
       body.appendChild(el('p', null, 'At ' + best.label + ' this budget holds up to '
-        + maxTokens.toLocaleString('en-US') + ' tokens of context.'));
+        + maxTokens.toLocaleString('en-US') + ' tokens of context'
+        + (atCeiling ? ' - the rated ceiling for this model.' : '.')));
     } else {
       body.appendChild(el('p', null, 'Even ' + quant.label + ' needs ' + fmtBytes(check.totalBytes)
         + ', which is ' + fmtBytes(check.shortfallBytes) + ' over the budget. Nothing to trim.'));
@@ -516,7 +531,12 @@
       clear(memoryBody);
       for (const row of memory.rows) {
         const tr = el('tr');
-        tr.appendChild(el('td', null, row.name));
+        const nameTd = el('td', null, row.name);
+        if (row.withinContext === false) {
+          nameTd.appendChild(el('span', 'verdict-note', ' rated to '
+            + Number(row.contextMax).toLocaleString('en-US') + ' tokens'));
+        }
+        tr.appendChild(nameTd);
         tr.appendChild(el('td', 'mono', row.exactThresholdGb === null ? 'n/a' : row.exactThresholdGb + ' GB'));
         tr.appendChild(el('td', 'mono', row.weightGbAtSmallest + ' GB'));
         tr.appendChild(el('td', 'mono', row.kvGbAtContext + ' GB'));

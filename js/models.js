@@ -51,17 +51,25 @@
   }
 
   function kvBytes(model, tokens) {
-    return kvBytesPerToken(model) * Math.max(0, tokens);
+    const t = Number(tokens);
+    return kvBytesPerToken(model) * (Number.isFinite(t) && t > 0 ? t : 0);
   }
 
   function totalBytes(model, quant, tokens) {
     return weightBytes(model.params, quant.bitsPerWeight) + kvBytes(model, tokens) + RUNTIME_OVERHEAD_BYTES;
   }
 
+  /* Budgets clamp into the finite non-negative range so NaN or Infinity input can
+     never produce a NaN or infinite verdict downstream. */
+  function cleanBudget(budgetBytes) {
+    return Math.min(Math.max(Number(budgetBytes) || 0, 0), Number.MAX_VALUE);
+  }
+
   function fitCheck(model, quant, budgetBytes, tokens) {
+    const budget = cleanBudget(budgetBytes);
     const total = totalBytes(model, quant, tokens);
-    const fits = total <= budgetBytes;
-    const utilization = budgetBytes > 0 ? total / budgetBytes : Infinity;
+    const fits = total <= budget;
+    const utilization = budget > 0 ? total / budget : Infinity;
     let verdict;
     if (!fits) {
       verdict = 'no';
@@ -70,25 +78,31 @@
     } else {
       verdict = 'tight';
     }
+    const contextMax = Number.isFinite(model.contextMax) ? model.contextMax : null;
+    const t = Number(tokens);
     return {
       fits: fits,
       totalBytes: total,
-      freeBytes: budgetBytes - total,
+      freeBytes: budget - total,
       utilization: utilization,
       verdict: verdict,
-      shortfallBytes: fits ? 0 : total - budgetBytes,
+      shortfallBytes: fits ? 0 : total - budget,
+      contextMax: contextMax,
+      beyondContext: contextMax !== null && Number.isFinite(t) && t > contextMax,
     };
   }
 
-  /* Largest context (in tokens) that fits once weights and runtime overhead are paid. */
+  /* Largest usable context (in tokens): the smaller of what the budget affords
+     and the context ceiling the catalog entry is rated for. */
   function maxTokens(model, quant, budgetBytes) {
     const weights = weightBytes(model.params, quant.bitsPerWeight);
     const perToken = kvBytesPerToken(model);
-    const room = budgetBytes - weights - RUNTIME_OVERHEAD_BYTES;
+    const room = cleanBudget(budgetBytes) - weights - RUNTIME_OVERHEAD_BYTES;
     if (room <= 0 || perToken <= 0) {
       return 0;
     }
-    return Math.floor(room / perToken);
+    const limit = Number.isFinite(model.contextMax) ? model.contextMax : Infinity;
+    return Math.min(Math.floor(room / perToken), limit);
   }
 
   /* The highest quality quantization that fits, walking QUANTS from smallest to largest.
