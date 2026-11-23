@@ -67,6 +67,7 @@ class El {
   }
   setAttribute(k, v) {
     this.attrs[k] = String(v);
+    if (k === 'class') { this.className = v; }
     if (k.startsWith('data-')) {
       this.dataset[k.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = String(v);
     }
@@ -168,9 +169,16 @@ function makeDom(page) {
     IntersectionObserver: FakeIntersectionObserver,
     matchMedia: () => ({ matches: false })
   };
+  const location = {
+    hash: '',
+    href: 'http://nestpulse.test/',
+    pathname: '/',
+    origin: 'http://nestpulse.test'
+  };
+  window.location = location;
   // Load each shipped module into the vm context so the browser globals line up.
   const sandbox = {
-    document, window, console: window.console, self: null,
+    document, window, console: window.console, self: null, location,
     IntersectionObserver: window.IntersectionObserver,
     setTimeout, clearTimeout, setInterval: () => 0, clearInterval: () => {},
     Math, JSON, Date, Number, String, Object, Array, Set, Map, Boolean, isFinite,
@@ -181,7 +189,8 @@ function makeDom(page) {
   const context = vm.createContext(sandbox);
   const modules = [
     'js/data-library.js', 'js/data-rules.js', 'js/data-sensors.js',
-    'js/raid.js', 'js/models.js', 'js/tidy.js', 'js/rules.js', 'js/insights.js'
+    'js/raid.js', 'js/models.js', 'js/tidy.js', 'js/rules.js', 'js/insights.js',
+    'js/resilience-lab.js'
   ];
   for (const rel of modules) {
     vm.runInContext(fs.readFileSync(path.join(repoRoot, rel), 'utf8'), context, { filename: rel });

@@ -27,6 +27,7 @@
         <a href="#tidy">Tidy Plans</a>
         <a href="#rules">Rule Forge</a>
         <a href="#insights">Insights</a>
+        <a href="#resilience">Resilience Lab</a>
       </nav>
       <p class="rail-note mono"><span class="led led-dim" aria-hidden="true"></span>Offline Demo</p>
     </div>
@@ -37,9 +38,9 @@
       <div class="hero-grid">
         <div class="hero-copy">
           <h1 id="hero-h">The service bench for a <em>personal home NAS</em></h1>
-          <p class="hero-lede">NestPulse is a browser workbench for planning a personal home NAS. Four planning modules and an insights view cover capacity math, memory fitting, cleanup proposals, and automation conflicts. Every number is computed in this tab, every dataset is a labeled demo, and nothing ever leaves the page.</p>
+          <p class="hero-lede">NestPulse is a browser workbench for planning a personal home NAS. Five planning modules and an insights view cover capacity math, memory fitting, cleanup proposals, automation conflicts, and rebuild URE risk. Every number is computed in this tab, every dataset is a labeled demo, and nothing ever leaves the page.</p>
 
-          <ul class="module-index" aria-label="The four modules">
+          <ul class="module-index" aria-label="The five modules">
             <li>
               <a href="#storage">
                 <span class="module-name">Storage Doctor</span>
@@ -62,6 +63,12 @@
               <a href="#rules">
                 <span class="module-name">Rule Forge</span>
                 <span class="module-desc mono">Conflict detection with a logged dry run</span>
+              </a>
+            </li>
+            <li>
+              <a href="#resilience">
+                <span class="module-name">Resilience and URE Lab</span>
+                <span class="module-desc mono">Rebuild error probability with audited exports</span>
               </a>
             </li>
           </ul>
@@ -138,9 +145,12 @@
             <option value="8" selected>8 TB</option>
             <option value="10">10 TB</option>
             <option value="12">12 TB</option>
+            <option value="14">14 TB</option>
             <option value="16">16 TB</option>
+            <option value="18">18 TB</option>
             <option value="20">20 TB</option>
             <option value="22">22 TB</option>
+            <option value="24">24 TB</option>
           </select>
         </div>
         <div class="field field-wide">
@@ -360,6 +370,72 @@
       </div>
       <p class="panel-error" id="error-insights" role="alert" hidden></p>
     </section>
+
+    <section id="resilience" class="module wrap reveal" aria-labelledby="resilience-h">
+      <div class="module-head">
+        <h2 id="resilience-h"><span class="led led-ok" aria-hidden="true"></span>Resilience and URE Lab</h2>
+        <p class="lede chip-adjacent"><span class="chip chip-warn"><i class="led led-warn" aria-hidden="true"></i>Reference Model</span>How likely one unrecoverable read error is to sink a rebuild. The lab shares the Storage Doctor drives and the Memory Fit budget, adds a drive error rate class, and stamps every export with a SHA-256 digest you can verify right on the page.</p>
+      </div>
+      <p id="lab-offline" class="panel-error" hidden>The resilience lab module is not loaded, so this panel is resting. The rest of the bench still works.</p>
+      <div id="lab-live">
+        <div class="control-strip" role="group" aria-label="Resilience inputs">
+          <div class="field field-wide">
+            <span id="lab-ber-label" class="group-label">Drive error rate class</span>
+            <div class="seg-group" role="radiogroup" aria-labelledby="lab-ber-label">
+              <button id="lab-ber-14" type="button" class="seg-btn" data-ber="14" aria-pressed="true">Consumer 1e-14</button>
+              <button id="lab-ber-15" type="button" class="seg-btn" data-ber="15" aria-pressed="false">NAS 1e-15</button>
+              <button id="lab-ber-16" type="button" class="seg-btn" data-ber="16" aria-pressed="false">Enterprise 1e-16</button>
+            </div>
+          </div>
+        </div>
+        <p class="readout-line mono" id="lab-sync-note"></p>
+        <p class="readout-line mono" id="lab-summary" aria-live="polite"></p>
+        <div class="table-scroll">
+          <table class="data-table lab-compare-table">
+            <caption class="visually-hidden">Rebuild URE failure probability for five RAID levels at the current drive set</caption>
+            <thead>
+              <tr>
+                <th scope="col">Level</th>
+                <th scope="col">Usable</th>
+                <th scope="col">Efficiency</th>
+                <th scope="col">Tolerance</th>
+                <th scope="col">Rebuild</th>
+                <th scope="col">Drives read</th>
+                <th scope="col">URE loss risk</th>
+              </tr>
+            </thead>
+            <tbody id="lab-compare-body"></tbody>
+          </table>
+        </div>
+
+        <h3 class="sub-head">Rebuild loss risk against drive capacity</h3>
+        <div class="lab-chart-wrap">
+          <div id="lab-chart"></div>
+        </div>
+        <p class="readout-line mono" id="lab-sweep-readout" aria-live="polite"></p>
+
+        <h3 class="sub-head">Architecture rollup</h3>
+        <div class="stat-strip" id="lab-rollup"></div>
+
+        <h3 class="sub-head">Audited exports</h3>
+        <div class="export-bar">
+          <p class="digest-line mono" id="lab-digest"></p>
+          <div class="export-actions">
+            <button id="lab-export-json" type="button">Export JSON</button>
+            <button id="lab-export-csv" type="button">Export CSV</button>
+            <button id="lab-export-md" type="button">Export Markdown</button>
+            <button id="lab-copy-link" type="button">Copy Share Link</button>
+            <button id="lab-verify" type="button">Verify and Tamper Demo</button>
+            <button id="lab-run-tests" type="button">Run Self Tests</button>
+          </div>
+          <p class="readout-line mono" id="lab-export-status" aria-live="polite"></p>
+          <p class="readout-line mono" id="lab-tests-count" aria-live="polite"></p>
+          <div class="lab-tests" id="lab-tests-list"></div>
+        </div>
+        <p class="footnote">The URE math is a reference model: a Poisson estimate over vendor published nominal bit error rates, not a measurement of a real controller. A rebuild reads every surviving parity member for RAID 5 and 6, or the one surviving twin for a mirror. RAID 6 absorbs a lone bad sector during a rebuild, so its figure is the two event tail. No NAS hardware is connected.</p>
+      </div>
+      <p class="panel-error" id="error-resilience" role="alert" hidden></p>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -382,6 +458,7 @@
   <script src="js/tidy.js" defer></script>
   <script src="js/rules.js" defer></script>
   <script src="js/insights.js" defer></script>
+  <script src="js/resilience-lab.js" defer></script>
   <script src="js/app.js" defer></script>
 </body>
 </html>

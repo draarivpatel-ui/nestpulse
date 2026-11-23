@@ -593,6 +593,395 @@
     render();
   }
 
+  /* ------------------------- Resilience and URE Lab ------------------------- */
+
+  function fmtProbPercent(p) {
+    if (p === null || p === undefined || !Number.isFinite(p)) { return 'n/a'; }
+    const pct = p * 100;
+    if (pct >= 99.95) { return 'about 100%'; }
+    if (pct >= 0.1) { return pct.toFixed(1) + '%'; }
+    if (pct >= 0.001) { return pct.toFixed(2) + '%'; }
+    return pct.toExponential(1) + '%';
+  }
+
+  function berClassLabel(berExp) {
+    const found = NestPulseLab.BER_CLASSES.find(function (c) { return c.berExp === berExp; });
+    return found ? found.label + ' media at 1e-' + berExp : 'a nominal BER of 1e-' + berExp;
+  }
+
+  function svgNode(tag, attrs) {
+    const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const key of Object.keys(attrs)) { node.setAttribute(key, attrs[key]); }
+    return node;
+  }
+
+  function fireEvent(node, type) {
+    if (typeof node.fire === 'function') { node.fire(type); return; }
+    node.dispatchEvent(new Event(type, { bubbles: true }));
+  }
+
+  function riskLed(risk) {
+    switch (risk) {
+      case 'low': return 'led-ok';
+      case 'elevated': return 'led-warn';
+      case 'high': return 'led-fault';
+      case 'critical': return 'led-fault';
+      default: return 'led-dim';
+    }
+  }
+
+  /* The comparator table: one row per level, the Storage Doctor numbers next to
+     the Poisson rebuild loss probability. */
+  function renderCompare(body, compare) {
+    clear(body);
+    for (const row of compare.rows) {
+      const tr = el('tr', row.ok ? null : 'row-no-fit');
+      const nameTd = el('th', null, row.label);
+      nameTd.setAttribute('scope', 'row');
+      tr.appendChild(nameTd);
+      if (!row.ok) {
+        const bad = el('td', 'bay-empty', row.error);
+        bad.colSpan = 6;
+        tr.appendChild(bad);
+        body.appendChild(tr);
+        continue;
+      }
+      tr.appendChild(el('td', 'mono', row.usableTib.toFixed(2) + ' TiB'));
+      tr.appendChild(el('td', 'mono', Math.round(row.efficiency * 100) + '%'));
+      tr.appendChild(el('td', 'mono', row.guaranteedFaultTolerance === row.bestCaseFaultTolerance
+        ? plural(row.guaranteedFaultTolerance, 'drive')
+        : '1 guaranteed, up to ' + row.bestCaseFaultTolerance));
+      tr.appendChild(el('td', 'mono', fmtHours(row.rebuildHours)));
+      tr.appendChild(el('td', 'mono', row.drivesRead === null ? 'n/a' : plural(row.drivesRead, 'drive')));
+      const riskCell = el('td', null);
+      const riskChip = chip(row.ureProbability === null ? 'No rebuild' : NestPulseLab.ureRiskLabel(row.ureProbability),
+        row.risk === 'na' ? 'warn' : row.risk === 'low' ? 'ok' : row.risk === 'elevated' ? 'warn' : 'fault');
+      riskCell.appendChild(riskChip);
+      riskCell.appendChild(el('span', 'verdict-note mono',
+        row.ureProbability === null ? 'Nothing to rebuild from' : fmtProbPercent(row.ureProbability) + ' rebuild loss risk'));
+      tr.appendChild(riskCell);
+      body.appendChild(tr);
+    }
+  }
+
+  /* The sweep chart: log scale URE loss probability against drive capacity for
+     the three redundant levels. Every data point is a keyboard focusable
+     circle that reports its exact number into the live readout. */
+  const SWEEP_COLORS = { '5': '#ef8974', '6': '#5fd3a5', '10': '#f1eee3' };
+  const SWEEP_NAMES = { '5': 'RAID 5', '6': 'RAID 6', '10': 'RAID 10' };
+
+  function renderSweepChart(host, sweep, berExp, readout) {
+    clear(host);
+    const W = 660;
+    const H = 300;
+    const ML = 62;
+    const MR = 14;
+    const MT = 14;
+    const MB = 36;
+    const YMIN = 1e-6;
+    const YMAX = 1;
+    const sizes = sweep.sizesTb;
+    const xMin = Math.min.apply(null, sizes);
+    const xMax = Math.max.apply(null, sizes);
+    const xOf = function (tb) {
+      return ML + (xMax === xMin ? 0 : (tb - xMin) / (xMax - xMin)) * (W - ML - MR);
+    };
+    const yOf = function (p) {
+      const clamped = Math.min(YMAX, Math.max(YMIN, p === null ? YMIN : p));
+      const t = (Math.log10(clamped) - Math.log10(YMIN)) / (Math.log10(YMAX) - Math.log10(YMIN));
+      return MT + (1 - t) * (H - MT - MB);
+    };
+    const svg = svgNode('svg', {
+      viewBox: '0 0 ' + W + ' ' + H,
+      class: 'lab-sweep',
+      role: 'img',
+      'aria-label': 'Rebuild URE loss probability versus drive capacity for RAID 5, RAID 6 and RAID 10',
+    });
+    const decades = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1];
+    const decadeLabels = ['0.0001%', '0.001%', '0.01%', '0.1%', '1%', '10%', '100%'];
+    decades.forEach(function (d, i) {
+      const y = yOf(d);
+      svg.appendChild(svgNode('line', {
+        x1: ML, x2: W - MR, y1: y, y2: y, class: 'chart-grid' + (d === 1 ? ' chart-grid-top' : ''),
+      }));
+      const label = svgNode('text', { x: ML - 8, y: y + 3.5, class: 'chart-tick', 'text-anchor': 'end' });
+      label.textContent = decadeLabels[i];
+      svg.appendChild(label);
+    });
+    for (const tb of sizes) {
+      const x = xOf(tb);
+      svg.appendChild(svgNode('line', { x1: x, x2: x, y1: H - MB, y2: H - MB + 4, class: 'chart-grid' }));
+      const tick = svgNode('text', { x: x, y: H - MB + 16, class: 'chart-tick', 'text-anchor': 'middle' });
+      tick.textContent = tb;
+      svg.appendChild(tick);
+    }
+    const axisX = svgNode('text', { x: (ML + W - MR) / 2, y: H - 6, class: 'chart-axis', 'text-anchor': 'middle' });
+    axisX.textContent = 'Drive capacity, TB';
+    svg.appendChild(axisX);
+    const axisY = svgNode('text', {
+      x: 12, y: (MT + H - MB) / 2, class: 'chart-axis', 'text-anchor': 'middle',
+      transform: 'rotate(-90 12 ' + ((MT + H - MB) / 2) + ')',
+    });
+    axisY.textContent = 'Loss probability';
+    svg.appendChild(axisY);
+
+    for (const series of sweep.series) {
+      const pts = series.points.map(function (p) {
+        return xOf(p.driveTb).toFixed(2) + ',' + yOf(p.p).toFixed(2);
+      });
+      svg.appendChild(svgNode('polyline', {
+        points: pts.join(' '),
+        class: 'chart-line',
+        fill: 'none',
+        stroke: SWEEP_COLORS[series.level],
+      }));
+      for (const point of series.points) {
+        const circle = svgNode('circle', {
+          cx: xOf(point.driveTb), cy: yOf(point.p), r: 4.5,
+          class: 'ure-point', fill: SWEEP_COLORS[series.level],
+          tabindex: '0', role: 'button',
+          'aria-label': SWEEP_NAMES[series.level] + ' at ' + point.driveTb + ' TB, rebuild loss risk '
+            + fmtProbPercent(point.p),
+        });
+        const title = svgNode('title', {});
+        title.textContent = SWEEP_NAMES[series.level] + ' at ' + point.driveTb + ' TB: '
+          + fmtProbPercent(point.p) + ' rebuild loss risk';
+        circle.appendChild(title);
+        const announce = function () {
+          readout.textContent = SWEEP_NAMES[series.level] + ' at ' + point.driveTb + ' TB: '
+            + fmtProbPercent(point.p) + ' rebuild loss risk at ' + berClassLabel(berExp)
+            + ', reading ' + plural(NestPulseLab.rebuildDrivesRead(series.level, sweep.state.drives), 'drive')
+            + ' end to end.';
+        };
+        circle.addEventListener('focus', announce);
+        circle.addEventListener('mouseover', announce);
+        circle.addEventListener('click', announce);
+        svg.appendChild(circle);
+      }
+    }
+
+    const legend = el('p', 'chart-legend mono');
+    for (const series of sweep.series) {
+      const item = el('span', 'chart-legend-item');
+      const swatch = el('i', 'chart-swatch');
+      swatch.setAttribute('aria-hidden', 'true');
+      swatch.style.background = SWEEP_COLORS[series.level];
+      item.appendChild(swatch);
+      item.appendChild(document.createTextNode(SWEEP_NAMES[series.level]));
+      legend.appendChild(item);
+    }
+    host.appendChild(svg);
+    host.appendChild(legend);
+  }
+
+  function initResilience() {
+    const live = $('lab-live');
+    const offline = $('lab-offline');
+    if (typeof NestPulseLab === 'undefined' || !NestPulseLab) {
+      if (live) { live.hidden = true; }
+      if (offline) { offline.hidden = false; }
+      return;
+    }
+    const lab = NestPulseLab;
+    const berButtons = [$('lab-ber-14'), $('lab-ber-15'), $('lab-ber-16')].filter(Boolean);
+    let berExp = 14;
+
+    function state() {
+      return lab.normalizeState({
+        drives: Number($('drive-count').value),
+        driveTb: Number($('drive-size').value),
+        berExp: berExp,
+        rebuildMbps: Number($('rebuild-speed').value),
+        ramGb: Number($('ram-budget').value),
+        tokens: Number($('context-tokens').value),
+        panel: 'resilience',
+      });
+    }
+
+    function markBerButtons() {
+      for (const btn of berButtons) {
+        btn.setAttribute('aria-pressed', Number(btn.getAttribute('data-ber')) === berExp ? 'true' : 'false');
+      }
+    }
+
+    const render = function () {
+      const current = state();
+      markBerButtons();
+
+      $('lab-sync-note').textContent = 'Synced with Storage Doctor: ' + plural(current.drives, 'drive')
+        + ' of ' + current.driveTb + ' TB each, rebuilding at ' + current.rebuildMbps
+        + ' MB per second. Memory Fit budget: ' + current.ramGb + ' GB at '
+        + current.tokens.toLocaleString('en-US') + ' tokens.';
+
+      const compare = lab.compareRaid(current);
+      const sweep = lab.ureSweep(current);
+      const rollup = lab.architectureRollup(current);
+      const report = lab.reportFor(current);
+
+      const p5 = compare.rows.find(function (r) { return r.level === '5'; });
+      const p6 = compare.rows.find(function (r) { return r.level === '6'; });
+      const p10 = compare.rows.find(function (r) { return r.level === '10'; });
+      $('lab-summary').textContent = 'At ' + berClassLabel(current.berExp) + ': RAID 5 rebuild loss risk '
+        + fmtProbPercent(p5.ureProbability) + ', RAID 6 ' + fmtProbPercent(p6.ureProbability)
+        + ', RAID 10 ' + fmtProbPercent(p10.ureProbability) + ' for ' + current.drives
+        + ' x ' + current.driveTb + ' TB drives.';
+
+      renderCompare($('lab-compare-body'), compare);
+      renderSweepChart($('lab-chart'), sweep, current.berExp, $('lab-sweep-readout'));
+
+      const rollHost = $('lab-rollup');
+      clear(rollHost);
+      rollHost.appendChild(statBlock(
+        rollup.storage.safest ? 'RAID ' + rollup.storage.safest.level : 'n/a',
+        rollup.storage.safest
+          ? 'safest rebuild at ' + fmtProbPercent(rollup.storage.safest.ureProbability) + ' loss risk'
+          : 'no redundant level available'));
+      rollHost.appendChild(statBlock(
+        rollup.memory.fitCount + ' of ' + rollup.memory.catalogCount,
+        'catalog entries fit the Memory Fit budget'));
+      rollHost.appendChild(statBlock(fmtBytes(rollup.tidy.savingBytes),
+        'reclaimable at the Tidy default threshold, ' + rollup.tidy.actionCount + ' proposals'));
+      rollHost.appendChild(statBlock(String(rollup.rules.conflictCount),
+        'predicted rule conflicts, ' + rollup.rules.validationCount + ' validation notes'));
+
+      $('lab-digest').textContent = 'sha256 ' + report.sha256;
+      if ($('lab-sweep-readout').textContent === '') {
+        $('lab-sweep-readout').textContent = 'Focus or tap a point on the chart to read its exact probability.';
+      }
+    };
+
+    function download(name, text, mime) {
+      const status = $('lab-export-status');
+      try {
+        if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function'
+          || typeof Blob === 'undefined') {
+          status.textContent = name + ' is ready: ' + text.length + ' bytes. Downloads need a full browser; the text is deterministic for this state.';
+          return;
+        }
+        const blob = new Blob([text], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        status.textContent = name + ' exported, ' + text.length + ' bytes, stamped with the same sha256 shown above.';
+      } catch (err) {
+        status.textContent = 'The export could not start a download in this browser. The payload itself is intact.';
+      }
+    }
+
+    for (const btn of berButtons) {
+      btn.addEventListener('click', function () {
+        const exp = Number(btn.getAttribute('data-ber'));
+        if (Number.isFinite(exp)) { berExp = exp; }
+        render();
+      });
+    }
+    for (const id of ['drive-count', 'drive-size', 'rebuild-speed', 'ram-budget', 'context-tokens']) {
+      const node = $(id);
+      node.addEventListener('input', render);
+      node.addEventListener('change', render);
+    }
+
+    $('lab-export-json').addEventListener('click', function () {
+      download('nestpulse-resilience-report.json', lab.reportFor(state()).json, 'application/json');
+    });
+    $('lab-export-csv').addEventListener('click', function () {
+      download('nestpulse-resilience-report.csv', lab.reportFor(state()).csv, 'text/csv');
+    });
+    $('lab-export-md').addEventListener('click', function () {
+      download('nestpulse-resilience-report.md', lab.reportFor(state()).markdown, 'text/markdown');
+    });
+
+    $('lab-copy-link').addEventListener('click', function () {
+      const status = $('lab-export-status');
+      const hash = lab.encodeState(state());
+      const base = typeof location !== 'undefined' && location && location.href
+        ? String(location.href).split('#')[0] : '';
+      const link = base + '#' + hash;
+      const done = function (ok) {
+        status.textContent = (ok ? 'Share link copied to the clipboard: ' : 'Share link ready: ') + link;
+      };
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(function () { done(true); }, function () { done(false); });
+        } else {
+          done(false);
+        }
+      } catch (err) {
+        done(false);
+      }
+    });
+
+    $('lab-verify').addEventListener('click', function () {
+      const status = $('lab-export-status');
+      const report = lab.reportFor(state());
+      const intact = lab.verifyReport(report.json);
+      const demo = lab.tamperDemo(state());
+      status.textContent = intact.ok
+        ? 'Digest verified for the current state. The tamper demo then flipped one field and the check caught it: stamped '
+          + demo.intactDigest.slice(0, 16) + ' versus recomputed ' + demo.tamperedDigest.slice(0, 16) + '.'
+        : 'Digest mismatch on the current payload, the audit trail is doing its job by failing loudly.';
+    });
+
+    $('lab-run-tests').addEventListener('click', function () {
+      const out = lab.selfTests();
+      $('lab-tests-count').textContent = out.passed + ' of ' + out.total + ' deterministic checks passed.';
+      const list = $('lab-tests-list');
+      clear(list);
+      for (const result of out.results) {
+        const row = el('p', 'lab-test-row');
+        const lamp = el('i', 'led ' + (result.ok ? 'led-ok' : 'led-fault'));
+        lamp.setAttribute('aria-hidden', 'true');
+        row.appendChild(lamp);
+        row.appendChild(el('span', null, (result.ok ? 'Pass' : 'Fail') + ': ' + result.name
+          + (result.ok ? '' : ' - ' + result.detail)));
+        list.appendChild(row);
+      }
+    });
+
+    /* A strict bookmark: only a well formed np= hash restores state, and only
+       into the real controls so every panel recomputes through its own path. */
+    function restoreFromHash() {
+      if (typeof location === 'undefined' || !location || typeof location.hash !== 'string') { return; }
+      const decoded = lab.decodeState(location.hash);
+      if (!decoded) { return; }
+      const countEl = $('drive-count');
+      countEl.value = String(decoded.drives);
+      fireEvent(countEl, 'input');
+      const sizeEl = $('drive-size');
+      const sizeValue = String(decoded.driveTb);
+      sizeEl.value = sizeValue;
+      if (sizeEl.value !== sizeValue) { sizeEl.value = '8'; }
+      fireEvent(sizeEl, 'change');
+      const speedEl = $('rebuild-speed');
+      speedEl.value = String(decoded.rebuildMbps);
+      fireEvent(speedEl, 'input');
+      const ramEl = $('ram-budget');
+      ramEl.value = String(decoded.ramGb);
+      fireEvent(ramEl, 'input');
+      const tokenEl = $('context-tokens');
+      const tokenValue = String(decoded.tokens);
+      tokenEl.value = tokenValue;
+      if (tokenEl.value !== tokenValue) { tokenEl.value = '8192'; }
+      fireEvent(tokenEl, 'change');
+      berExp = decoded.berExp;
+      const target = document.getElementById(decoded.panel);
+      if (target && typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView();
+      }
+    }
+
+    if (typeof window !== 'undefined' && window && typeof window.addEventListener === 'function') {
+      window.addEventListener('hashchange', restoreFromHash);
+    }
+    restoreFromHash();
+    render();
+  }
+
   /* ------------------------------- Page chrome ------------------------------ */
 
   function initReveal() {
@@ -630,5 +1019,6 @@
   safeInit('tidy', initTidy);
   safeInit('rules', initRules);
   safeInit('insights', initInsights);
+  safeInit('resilience', initResilience);
   safeInit('reveal', initReveal);
 })();

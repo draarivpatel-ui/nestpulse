@@ -1,6 +1,6 @@
 # NestPulse
 
-A command center dashboard concept for a personal home NAS: five working
+A command center dashboard concept for a personal home NAS: six working
 planners that run entirely in the browser, on a labeled demo dataset, with
 zero dependencies and zero network calls.
 
@@ -11,7 +11,7 @@ relationship is claimed.
 
 ## What is in the box
 
-Five panels, each backed by a shared math module that the test suite exercises
+Six panels, each backed by a shared math module that the test suite exercises
 directly:
 
 **Storage Doctor.** Enter a drive count, a drive size, and a rebuild speed. All
@@ -48,6 +48,19 @@ drive size, the exact memory budget at which each catalog entry first fits,
 the reclaimable bytes lost as cleanup confidence requirements increase, and
 the connected groups of rules that clash together. The target capacity and
 context length are interactive controls.
+
+**Resilience Lab.** A rebuild risk workbench that reuses the Storage Doctor
+capacity math and the Memory Fit budget. Pick a labeled bit error rate class
+(consumer, NAS, or enterprise grade media at 1e-14, 1e-15, or 1e-16 nominal)
+and the lab compares all five RAID levels on rebuild hours, usable capacity,
+and the probability that an unrecoverable read error interrupts a rebuild. An
+SVG chart sweeps drive sizes from 2 TB to 24 TB for RAID 5, 6, and 10, with
+keyboard focusable data points. An export bar stamps one canonical SHA-256
+digest over the whole snapshot and emits the same fingerprint in the JSON,
+CSV, and Markdown downloads, an on page verifier recomputes the digest to
+demonstrate tamper detection, a `#np=` bookmark codec encodes and restores
+the full dashboard state in the URL hash, and an in page runner executes 17
+deterministic self tests.
 
 ## Run it
 
@@ -111,6 +124,22 @@ conflict as an edge between two rule ids, builds connected components, and
 ranks rules by a weighted severity (contradictions count 3, shadowed findings
 2, duplicate effects 1).
 
+**Resilience Lab.** Rebuild exposure is `drives_read * drive_bits * 10^-berExp`
+expected read errors, where `drives_read` is every surviving drive the rebuild
+must read in full. The single error probability uses the Poisson tail
+`1 - exp(-lambda)` computed as `-expm1(-lambda)` so tiny rates do not suffer
+catastrophic cancellation, and the two or more error probability uses a
+series form below `lambda = 0.25` and the direct formula above it. RAID 5 and
+RAID 10 read every surviving drive, RAID 6 tolerates one failure during the
+read, and RAID 0 and RAID 1 report a marked not applicable or informational
+state because neither performs a parity rebuild. The digest is a pure
+JavaScript FIPS 180-4 SHA-256 over one canonical JSON payload, cached per
+state so the on page fingerprint, the JSON export, the CSV provenance header,
+and the Markdown footer always carry the identical value. The `#np=` codec
+round trips drive count, drive size, error rate class, rebuild speed, memory
+budget, context length, and the active panel through a whitelisted, fail
+closed base64url JSON envelope that blocks `__proto__` and constructor keys.
+
 ## Data honesty
 
 - Every dataset on the page is synthetic and labeled: the library manifest
@@ -120,7 +149,11 @@ ranks rules by a weighted severity (contradictions count 3, shadowed findings
   counts, KV dimensions), not measured checkpoints. Quantization bits per
   weight are community standard approximations for Q2 K through Q8.
 - The RAID rebuild model is a simplification, stated on the page, not a
-  simulation of any specific controller.
+  simulation of any specific controller. The Resilience Lab bit error rate
+  classes are labeled reference values commonly published for consumer, NAS,
+  and enterprise grade media; the resulting probabilities are planning
+  estimates for a simplified single stream rebuild, not measurements of a
+  real controller or a prediction about any specific drive model.
 - Nothing on the page represents a real NAS, a real purchase, or a
   relationship with any hardware vendor.
 
@@ -150,6 +183,7 @@ js/models.js          Memory Fit math and catalog
 js/tidy.js            Tidy Plans grouping, ranking, and planning
 js/rules.js           Rule Forge conflict detection and dry runs
 js/insights.js        frontier searches and conflict graph diagnostics
+js/resilience-lab.js  rebuild URE risk model, SHA-256 exporter, #np= codec
 js/data-library.js    synthetic 57 item library manifest
 js/data-rules.js      the nine demo rules
 js/data-sensors.js    deterministic 72 hour synthetic sensor logs
@@ -162,26 +196,36 @@ DEVPOST_UPGRADE.md    the upgrade log and exact verification commands
 ## Verification
 
 `npm test` runs the math suites, the static page checks, the insights
-frontier and graph tests, and live execution of `js/app.js` against a DOM
-shim. Compliance tests walk every text file in the repository and reject two
-dash characters, vendor model names and generated text disclosures. The
-regression tests pin the 24 TB frontier, the exact memory thresholds, the
-cleanup curve endpoints, and the largest conflict component.
+frontier and graph tests, the resilience lab suites, and live execution of
+`js/app.js` against a DOM shim. Compliance tests walk every text file in the
+repository and reject two dash characters, vendor model names and generated
+text disclosures. The regression tests pin the 24 TB frontier, the exact
+memory thresholds, the cleanup curve endpoints, and the largest conflict
+component. The lab suites verify the SHA-256 vectors against the platform
+digest, the `-expm1` probability bounds and monotonicity, exact digest parity
+across the on page fingerprint and all three export formats, tamper
+detection, formula safe CSV escaping, and hostile `#np=` hash decoding.
 
 ## Author and license
 
 Built by Aariv Patel. MIT licensed, see `LICENSE`.
 
-## November 16 local verification
+## November 22 local verification
 
-158 Node tests passed, 0 failed, 0 skipped, 0 cancelled.
+387 Node tests passed, 0 failed, 0 skipped, 0 cancelled.
 
 `npm test` runs `node --test tests/*.test.js`. The explicit file pattern works
-on Node v24.16.0, where a bare tests directory was treated as a module path.
+on Node v26.8.1, where a bare tests directory was treated as a module path.
 The memory frontier now reports the quantization that actually fits at the
 computed threshold, with a regression assertion for every catalog row. Storage
-frontier wording refers to raw capacity and does not imply a drive price.
+frontier wording refers to raw capacity and does not imply a drive price. The
+Resilience Lab contributes the rebuild URE comparator, the drive size sweep
+chart, the digest stamped JSON, CSV and Markdown exports, the tamper
+verifier, the `#np=` bookmark codec and the 17 check in page self test
+runner, all reusing the same dependency free modules as the other panels.
 
-Verification environment. Node v24.16.0 and Python 3.9.6, with pytest 8.4.2
-for Python test files where present. No browser or physical hardware session
-was run.
+Verification environment. Node v26.8.1 and Python 3.9.6, with pytest 8.4.2
+for Python test files where present. The page was also exercised in headless
+Chromium at 1440x900 and 390x844 with zero console errors, zero page
+exceptions, zero external requests, and zero horizontal overflow. No NAS
+hardware was connected.

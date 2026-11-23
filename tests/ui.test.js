@@ -23,6 +23,7 @@ test('No forbidden dash characters anywhere in shipped copy', () => {
     'js/tidy.js',
     'js/rules.js',
     'js/insights.js',
+    'js/resilience-lab.js',
     'js/app.js',
     'js/data-library.js',
     'js/data-rules.js',
@@ -79,6 +80,7 @@ test('Every browser script compiles cleanly', () => {
     'js/tidy.js',
     'js/rules.js',
     'js/insights.js',
+    'js/resilience-lab.js',
     'js/app.js',
   ];
   for (const file of files) {
