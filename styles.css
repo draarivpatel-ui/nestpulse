@@ -617,12 +617,13 @@ select {
 input[type="range"] {
   accent-color: var(--accent);
   width: 100%;
+  height: 1.5rem;
 }
 
 input[type="checkbox"] {
   accent-color: var(--accent);
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.55rem;
+  height: 1.55rem;
 }
 
 .field-check {
@@ -1463,6 +1464,9 @@ html.js .reveal.in {
 }
 
 @media (max-width: 640px) {
+  .rail {
+    position: static;
+  }
   body {
     font-size: 15.5px;
   }
@@ -1630,6 +1634,8 @@ html.js .reveal.in {
   display: block;
   width: 100%;
   height: auto;
+  cursor: crosshair;
+  touch-action: pan-y;
 }
 .chart-grid {
   stroke: rgba(228, 225, 211, 0.10);

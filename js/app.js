@@ -725,6 +725,13 @@
     axisY.textContent = 'Loss probability';
     svg.appendChild(axisY);
 
+    const plotted = [];
+    const announcePoint = function (series, point) {
+      readout.textContent = SWEEP_NAMES[series.level] + ' at ' + point.driveTb + ' TB: '
+        + fmtProbPercent(point.p) + ' rebuild loss risk at ' + berClassLabel(berExp)
+        + ', reading ' + plural(NestPulseLab.rebuildDrivesRead(series.level, sweep.state.drives), 'drive')
+        + ' end to end.';
+    };
     for (const series of sweep.series) {
       const pts = series.points.map(function (p) {
         return xOf(p.driveTb).toFixed(2) + ',' + yOf(p.p).toFixed(2);
@@ -736,8 +743,11 @@
         stroke: SWEEP_COLORS[series.level],
       }));
       for (const point of series.points) {
+        const cx = xOf(point.driveTb);
+        const cy = yOf(point.p);
+        plotted.push({ series: series, point: point, x: cx, y: cy });
         const circle = svgNode('circle', {
-          cx: xOf(point.driveTb), cy: yOf(point.p), r: 4.5,
+          cx: cx, cy: cy, r: 4.5,
           class: 'ure-point', fill: SWEEP_COLORS[series.level],
           tabindex: '0', role: 'button',
           'aria-label': SWEEP_NAMES[series.level] + ' at ' + point.driveTb + ' TB, rebuild loss risk '
@@ -748,10 +758,7 @@
           + fmtProbPercent(point.p) + ' rebuild loss risk';
         circle.appendChild(title);
         const announce = function () {
-          readout.textContent = SWEEP_NAMES[series.level] + ' at ' + point.driveTb + ' TB: '
-            + fmtProbPercent(point.p) + ' rebuild loss risk at ' + berClassLabel(berExp)
-            + ', reading ' + plural(NestPulseLab.rebuildDrivesRead(series.level, sweep.state.drives), 'drive')
-            + ' end to end.';
+          announcePoint(series, point);
         };
         circle.addEventListener('focus', announce);
         circle.addEventListener('mouseover', announce);
@@ -765,6 +772,36 @@
         svg.appendChild(circle);
       }
     }
+    const chartPoint = function (event) {
+      if (!event || typeof event.clientX !== 'number' || typeof svg.getScreenCTM !== 'function') return null;
+      const matrix = svg.getScreenCTM();
+      if (!matrix) return null;
+      if (typeof DOMPoint !== 'undefined') {
+        const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+        return { x: point.x, y: point.y };
+      }
+      return { x: (event.clientX - matrix.e) / matrix.a, y: (event.clientY - matrix.f) / matrix.d };
+    };
+    const announceNearest = function (event) {
+      const position = chartPoint(event);
+      if (!position) return;
+      let best = null;
+      let bestDistance = Infinity;
+      for (const item of plotted) {
+        const dx = item.x - position.x;
+        const dy = item.y - position.y;
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+          best = item;
+          bestDistance = distance;
+        }
+      }
+      if (best) announcePoint(best.series, best.point);
+    };
+    svg.addEventListener('pointerdown', announceNearest);
+    svg.addEventListener('pointermove', function (event) {
+      if (event && (event.pointerType === 'touch' || event.buttons)) announceNearest(event);
+    });
 
     const legend = el('p', 'chart-legend mono');
     for (const series of sweep.series) {
@@ -852,7 +889,7 @@
 
       $('lab-digest').textContent = 'sha256 ' + report.sha256;
       if ($('lab-sweep-readout').textContent === '') {
-        $('lab-sweep-readout').textContent = 'Focus or tap a point on the chart to read its exact probability.';
+        $('lab-sweep-readout').textContent = 'Focus a point or tap the chart to read its exact probability.';
       }
     };
 

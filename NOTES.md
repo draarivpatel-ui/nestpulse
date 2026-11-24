@@ -4,25 +4,24 @@
 
 NestPulse is a static single page app for the UGREEN Hackathon 2026, Automate Your Workflow track: a command center dashboard concept for a personal home NAS. It ships as `index.html` plus vanilla HTML, CSS, and JavaScript at the repo root, with zero dependencies and zero network calls, ready to drop onto GitHub Pages.
 
-Five panels, all computed client side from shared math modules:
+Six panels, all computed client side from shared math modules:
 
 1. Storage Doctor: RAID 0, 1, 5, 6, and 10 capacity, efficiency, fault tolerance, and rebuild window calculators with drive count, drive size, and rebuild speed inputs, plus TB versus TiB honesty and per level warnings.
 2. Memory Fit: fourteen illustrative catalog entries checked against every quantization (Q2 K through FP16) at a chosen RAM or VRAM budget and context length, with weights, KV cache, totals, verdicts, max context, and the full arithmetic shown per model.
 3. Tidy Plans: a dedupe and cleanup planner over a labeled 57 item synthetic manifest, ranking exact hash duplicates, burst sets, copy suffix patterns, and aged screenshots by confidence with a live threshold slider, a keep newest toggle, and per proposal file lists.
 4. Rule Forge: nine demo automation rules checked by a real pairwise conflict detector (contradictions, shadowed rules, duplicate effects, validation notes) with a dry run over 72 hours of deterministic synthetic sensor logs that reports observed co-firing per conflict.
 5. Cross-Panel Insights: four frontier and graph analyses across the same math modules (smallest drive count for a target capacity, exact memory budget thresholds per model, marginal reclaimable bytes across cleanup thresholds, and connected rule-conflict components).
+6. Resilience and URE Lab: rebuild unrecoverable-read-error risk comparisons, a drive size sweep chart, digest-stamped JSON, CSV and Markdown exports, tamper verification, and bookmarkable state encoding.
 
-Test suite: `node:test` under `tests/`, covering RAID math, model fit math, dedupe ranking, rule conflict detection, cross-panel insights, DOM smoke checks, and live DOM interaction, plus compliance checks (forbidden dash characters, id wiring, local assets only, syntax compilation, zero dependencies).
+Test suite: `node:test` under `tests/`, covering RAID math, model fit math, dedupe ranking, rule conflict detection, cross-panel insights, resilience lab math and exports, DOM smoke checks, and live DOM interaction, plus compliance checks (forbidden dash characters, id wiring, local assets only, syntax compilation, zero dependencies).
 
 ## Exact test results
 
-Final run of `node --test tests/*.test.js` on Node v26.8.1:
+Final run of `node --test --test-concurrency=1 tests/*.test.js` on Node v26.8.1:
 
-- Test files: 8 (dom-smoke, insights-dom, insights, models, raid, rules, tidy, ui)
-- Tests: 158 passing, 0 failing, 0 skipped
-- Duration: under 0.3 seconds, no network
-
-Per file: dom-smoke 25 tests, insights-dom 20 tests, insights 34 tests, models 17 tests, raid 17 tests, rules 21 tests, tidy 18 tests, ui 6 tests.
+- Test files: 11 (dom-smoke, hardening, insights-dom, insights, models, raid, resilience-dom, resilience-lab, rules, tidy, ui)
+- Tests: 388 passing, 0 failing, 0 skipped
+- Duration: about 1.5 seconds, no network
 
 Shipped demo outputs verified in the same run: the 57 item library plans 10 actions for 0.72 GB at the default 50 percent threshold with 3 proposals suppressed; the rule dry run predicts 4 conflicts (1 shadowed, 3 contradictions) and 1 validation note; 11 of 14 catalog models fit an 8 GB budget at 8192 tokens.
 
@@ -41,7 +40,7 @@ Shipped demo outputs verified in the same run: the 57 item library plans 10 acti
 - Show your work, everywhere: every panel prints its arithmetic, from the 4 x 8 TB parity line to the bits per weight and KV cache sentence behind each model verdict, so judges can check the numbers by hand.
 - A rule conflict detector that admits what it cannot see: it predicts contradictions, shadowing, and duplicates from time windows, sensor ranges, and device states, then replays 72 hours of synthetic logs and reports which predicted clashes never actually happened.
 - Honesty as a feature: a labeled synthetic library and log generator, TB versus TiB breakdowns, planning approximation notes on every model, and a demo dataset chip wherever synthetic data is used.
-- Verified, not vibes: 158 node:test cases across eight test suites (including math, frontier regressions, and DOM-shimmed UI interaction tests), running locally with zero installs and zero network.
+- Verified, not vibes: 388 node:test cases across eleven test suites (including math, frontier regressions, resilience exports, and DOM-shimmed UI interaction tests), running locally with zero installs and zero network.
 
 ## Refinement pass 2026-10-24
 

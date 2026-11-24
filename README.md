@@ -210,9 +210,9 @@ detection, formula safe CSV escaping, and hostile `#np=` hash decoding.
 
 Built by Aariv Patel. MIT licensed, see `LICENSE`.
 
-## November 22 local verification
+## November 24 local verification
 
-387 Node tests passed, 0 failed, 0 skipped, 0 cancelled.
+388 Node tests passed, 0 failed, 0 skipped, 0 cancelled.
 
 `npm test` runs `node --test tests/*.test.js`. The explicit file pattern works
 on Node v26.8.1, where a bare tests directory was treated as a module path.
