@@ -694,7 +694,7 @@
     const svg = svgNode('svg', {
       viewBox: '0 0 ' + W + ' ' + H,
       class: 'lab-sweep',
-      role: 'img',
+      role: 'group',
       'aria-label': 'Rebuild URE loss probability versus drive capacity for RAID 5, RAID 6 and RAID 10',
     });
     const decades = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1];
@@ -756,6 +756,12 @@
         circle.addEventListener('focus', announce);
         circle.addEventListener('mouseover', announce);
         circle.addEventListener('click', announce);
+        circle.addEventListener('keydown', function (event) {
+          if (event && (event.key === 'Enter' || event.key === ' ')) {
+            if (typeof event.preventDefault === 'function') { event.preventDefault(); }
+            announce();
+          }
+        });
         svg.appendChild(circle);
       }
     }

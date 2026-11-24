@@ -297,3 +297,13 @@ test('DOM R30: every rendered cell is finite and free of NaN', () => {
   assert.equal(/NaN|undefined/.test(env.getEl('lab-summary').textContent), false);
   assert.equal(/NaN|undefined/.test(env.getEl('lab-digest').textContent), false);
 });
+
+test('DOM R31: interactive sweep chart exposes group semantics and keyboard activation', () => {
+  const env = boot();
+  const chart = env.getEl('lab-chart').querySelector('svg');
+  assert.equal(chart.getAttribute('role'), 'group');
+  const point = env.getEl('lab-chart').querySelectorAll('.ure-point')[0];
+  const before = env.getEl('lab-sweep-readout').textContent;
+  point.fire('keydown', { key: 'Enter' });
+  assert.notEqual(env.getEl('lab-sweep-readout').textContent, before);
+});
