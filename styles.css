@@ -1743,6 +1743,24 @@ html.js .reveal.in {
     margin: 0.5in;
   }
 
+  :root {
+    --bg: #ffffff;
+    --slab: #ffffff;
+    --inset: #ffffff;
+    --line: #bbbbbb;
+    --line-strong: #777777;
+    --ink: #000000;
+    --muted: #333333;
+    --faint: #444444;
+    --accent: #000000;
+    --ok: #0f6b4f;
+    --ok-soft: #ffffff;
+    --warn: #7a4d00;
+    --warn-soft: #ffffff;
+    --fault: #8f2d1f;
+    --fault-soft: #ffffff;
+  }
+
   body {
     background: #FFFFFF;
     color: #000000;

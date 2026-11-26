@@ -23,3 +23,10 @@ test('print media protects article cards and removes fixed bench rails', () => {
   assert.match(css, /@media print[\s\S]*body::before\s*\{\s*content:\s*none !important;\s*display:\s*none !important;/);
   assert.match(css, /@media print[\s\S]*\.ledger,\s*article\s*\{[\s\S]*break-inside:\s*avoid;/);
 });
+
+test('print media remaps the dark bench tokens to black on white', () => {
+  assert.match(css, /@media print[\s\S]*:root\s*\{[\s\S]*--bg:\s*#ffffff;/);
+  assert.match(css, /@media print[\s\S]*:root\s*\{[\s\S]*--ink:\s*#000000;/);
+  assert.match(css, /@media print[\s\S]*:root\s*\{[\s\S]*--muted:\s*#333333;/);
+  assert.match(css, /@media print[\s\S]*:root\s*\{[\s\S]*--faint:\s*#444444;/);
+});
