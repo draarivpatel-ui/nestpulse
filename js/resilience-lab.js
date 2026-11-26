@@ -505,7 +505,8 @@
   function csvEscape(value) {
     let s = value === null || value === undefined ? '' : String(value);
     const needsQuote = /[",\n\r]/.test(s);
-    if (/^[\s=+\-@]/.test(s)) { s = "'" + s; }
+    const probe = s.normalize('NFKC');
+    if (typeof value !== 'number' && (/^[\s\p{Cf}\p{Cc}]*[=+\-@\t\r]/u.test(probe) || /^[\s\p{Cf}\p{Cc}]/u.test(s))) { s = "'" + s; }
     if (needsQuote) { s = '"' + s.replace(/"/g, '""') + '"'; }
     return s;
   }
