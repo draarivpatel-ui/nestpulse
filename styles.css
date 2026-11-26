@@ -1443,8 +1443,9 @@ html.js .reveal.in {
   .module-name::before,
   summary,
   button,
+  .seg-btn,
   .util-fill {
-    transition: none;
+    transition: none !important;
   }
 }
 
@@ -1749,11 +1750,14 @@ html.js .reveal.in {
 
   .rail,
   .control-strip,
+  .lab-chart-wrap,
   .unit,
   .site-footer,
+  a,
   button,
   input,
-  select {
+  select,
+  summary {
     display: none !important;
   }
 
@@ -1763,9 +1767,15 @@ html.js .reveal.in {
     transition: none;
   }
 
+  body::before {
+    content: none !important;
+    display: none !important;
+  }
+
   .module,
   .slab,
-  .ledger {
+  .ledger,
+  article {
     box-shadow: none;
     border-color: #000000;
     break-inside: avoid;
