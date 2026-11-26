@@ -232,6 +232,13 @@ test('a zero or missing rebuild speed yields no rebuild estimate', () => {
   assert.equal(raid.computeRaid({ level: '5', drives: 4, driveTb: 8 }).rebuildHours, null);
 });
 
+test('a rebuild speed small enough to overflow the quotient yields no estimate', () => {
+  const r = raid.computeRaid({ level: '5', drives: 4, driveTb: 8, rebuildMbps: 1e-308 });
+  assert.equal(r.ok, true);
+  assert.equal(r.rebuildHours, null);
+  assert.ok(r.notes.every((note) => !/Infinity/.test(note)));
+});
+
 test('the RAID 5 parity penalty is exactly 1.25 times the mirror rebuild', () => {
   const mirror = raid.computeRaid({ level: '1', drives: 2, driveTb: 8, rebuildMbps: 250 });
   const parity = raid.computeRaid({ level: '5', drives: 4, driveTb: 8, rebuildMbps: 250 });

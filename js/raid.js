@@ -109,7 +109,11 @@
     if (level !== '0' && Number.isFinite(rebuildMbps) && rebuildMbps > 0) {
       const bytesPerHour = rebuildMbps * 1e6 * 3600;
       const parityPenalty = (level === '5' || level === '6') ? 1.25 : 1;
-      rebuildHours = (bytesPerDrive / bytesPerHour) * parityPenalty;
+      const projectedHours = (bytesPerDrive / bytesPerHour) * parityPenalty;
+      /* A speed small enough to overflow the quotient leaves no usable estimate. */
+      if (Number.isFinite(projectedHours) && projectedHours > 0) {
+        rebuildHours = projectedHours;
+      }
     }
 
     const notes = levelNotes(level, drives, driveTb).slice();
