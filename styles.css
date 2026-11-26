@@ -1734,3 +1734,44 @@ html.js .reveal.in {
     flex: 1;
   }
 }
+
+/* ------------------------------- Print ----------------------------------- */
+
+@media print {
+  @page {
+    margin: 0.5in;
+  }
+
+  body {
+    background: #FFFFFF;
+    color: #000000;
+  }
+
+  .rail,
+  .control-strip,
+  .unit,
+  .site-footer,
+  button,
+  input,
+  select {
+    display: none !important;
+  }
+
+  html.js .reveal {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+
+  .module,
+  .slab,
+  .ledger {
+    box-shadow: none;
+    border-color: #000000;
+    break-inside: avoid;
+  }
+
+  a {
+    color: #000000;
+  }
+}

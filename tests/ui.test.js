@@ -101,6 +101,16 @@ test('The page carries semantic landmarks and no all-caps styling', () => {
   assert.equal(/TODO|FIXME/.test(html), false, 'no leftover markers in the page');
 });
 
+test('The page ships a print stylesheet that strips controls and exposes revealed sections', () => {
+  const css = read('styles.css');
+  const start = css.indexOf('@media print');
+  assert.ok(start !== -1, 'missing @media print block');
+  const block = css.slice(start);
+  assert.match(block, /\.rail[^{]*\{[^}]*display:\s*none/, 'print should hide the sticky rail');
+  assert.match(block, /\.control-strip[^{]*\{[^}]*display:\s*none/, 'print should hide input strips');
+  assert.match(block, /\.reveal[^{]*\{[^}]*opacity:\s*1/, 'print should force revealed sections visible');
+});
+
 test('The package declares zero dependencies', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.deepEqual(pkg.dependencies || {}, {});
